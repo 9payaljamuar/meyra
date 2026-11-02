@@ -12,11 +12,9 @@
     "web": "npm run dev -w apps/web",
     "seed": "npm run seed -w apps/api",
     "dev": "npm run db:up && concurrently -n api,web -c yellow,cyan \"npm run api\" \"npm run web\"",
-    "build:api-fn": "esbuild apps/api/src/app.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=api/index.mjs --log-level=warning",
-    "deploy": "npm run build:api-fn && vercel deploy --prod"
+    "deploy": "vercel deploy --prod"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
-    "esbuild": "^0.28.2"
+    "concurrently": "^9.1.2"
   }
 }
