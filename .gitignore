@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+apps/api/uploads/
+*.log
+.DS_Store
+builds/
+api/index.mjs
+WhatsApp*/
+.claude/

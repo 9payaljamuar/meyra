@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+apps/mobile
+apps/api/uploads
+apps/api/.env
+builds
+WhatsApp*
+.git

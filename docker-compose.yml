@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: meyra_db
+    environment:
+      POSTGRES_USER: meyra
+      POSTGRES_PASSWORD: meyra
+      POSTGRES_DB: meyra
+    ports:
+      - "5436:5432"
+    volumes:
+      - meyra_pg:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  meyra_pg:

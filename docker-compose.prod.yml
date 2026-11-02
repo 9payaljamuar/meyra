@@ -1,0 +1,33 @@
+# Self-hosted production on any VPS (DigitalOcean, AWS Lightsail, Hetzner…):
+#   cp apps/api/.env.example apps/api/.env   # fill in JWT_SECRET, PUBLIC_URL and any provider keys
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.prod.yml exec app npx tsx src/seed.ts   # optional demo data (wipes DB)
+# Put Caddy/Nginx in front for HTTPS (see README).
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: meyra
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-meyra}
+      POSTGRES_DB: meyra
+    volumes:
+      - pg:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file: apps/api/.env
+    environment:
+      DATABASE_URL: postgres://meyra:${DB_PASSWORD:-meyra}@db:5432/meyra
+      NODE_ENV: production
+    ports:
+      - "4000:4000"
+    volumes:
+      - uploads:/app/apps/api/uploads
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  pg:
+  uploads:
