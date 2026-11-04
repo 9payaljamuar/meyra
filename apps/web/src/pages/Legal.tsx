@@ -1,0 +1,103 @@
+import { Link } from 'react-router-dom'
+
+// Public policy pages (linked from the app, the Play Store listing and Razorpay onboarding).
+// Drafted for an Indian marketplace (IT Act 2000, Consumer Protection (E-Commerce) Rules 2020, DPDP Act 2023);
+// have them reviewed by the client's legal advisor before launch.
+
+const UPDATED = '3 November 2026'
+const CONTACT = (
+  <p>
+    <b>Grievance Officer, Meyra</b><br />
+    Email: <a href="mailto:support@meyraglory.com">support@meyraglory.com</a> · Phone: +91 993-959-0555<br />
+    Bengaluru, Karnataka 560075, India<br />
+    We acknowledge complaints within 48 hours and resolve them within 30 days.
+  </p>
+)
+
+function Page({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="legal">
+      <header>
+        <Link to="/"><img src="/logo.jpg" alt="Meyra" /></Link>
+        <nav><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></nav>
+      </header>
+      <article>
+        <h1>{title}</h1>
+        <p className="muted">Last updated {UPDATED}</p>
+        {children}
+      </article>
+    </div>
+  )
+}
+
+export function Privacy() {
+  return (
+    <Page title="Privacy Policy">
+      <p>Meyra (“we”, “us”) runs the Meyra mobile app and the Meyra Partner Hub, a marketplace where independent sellers offer cosmetics, apparel and accessories to customers in India. This policy explains what personal data we collect, why, and the choices you have.</p>
+      <h2>What we collect</h2>
+      <ul>
+        <li><b>Account details</b> – name, email, mobile number and password (stored only as a secure hash).</li>
+        <li><b>Orders</b> – items, delivery address, payment method and order history.</li>
+        <li><b>Payments</b> – processed by Razorpay. We never see or store your full card, UPI PIN or bank login details.</li>
+        <li><b>Reviews and photos</b> you choose to post, and photos you add to return requests.</li>
+        <li><b>Sellers</b> – business name, GSTIN, PAN, GST/PAN documents, pickup address and bank account for payouts.</li>
+        <li><b>Device data</b> – basic technical information needed to keep you signed in and the app working.</li>
+      </ul>
+      <h2>Why we use it</h2>
+      <ul>
+        <li>To create your account, process and deliver orders, handle returns and refunds, and pay sellers.</li>
+        <li>To send order, delivery and account messages by SMS, email and in-app notifications.</li>
+        <li>To verify sellers (GST/KYC), prevent fraud and meet legal and tax obligations.</li>
+        <li>To improve the catalogue and the app. We do not sell your personal data.</li>
+      </ul>
+      <h2>Who we share it with</h2>
+      <ul>
+        <li>The <b>seller</b> of your order, and <b>courier partners</b>, receive your name, phone and delivery address only to fulfil the order.</li>
+        <li>Service providers who work for us: payments (Razorpay), SMS and email delivery, cloud hosting and storage. They may use the data only to provide their service.</li>
+        <li>Government authorities when required by law.</li>
+      </ul>
+      <h2>How long we keep it</h2>
+      <p>We keep account data while your account is active. Order and invoice records are kept for up to 8 years as required by tax laws. Seller KYC records are kept for as long as the seller account exists and as the law requires after that.</p>
+      <h2>Your rights</h2>
+      <p>Under the Digital Personal Data Protection Act, 2023, you can ask to access, correct or erase your personal data, and withdraw consent. You can <b>delete your account</b> in the app (Account → Delete account) or by emailing us. Deleting your account removes your name, contact details and saved data; order records are kept in anonymised form for tax purposes.</p>
+      <h2>Security</h2>
+      <p>Data is sent over encrypted connections (HTTPS). Passwords are hashed and access to personal data is limited to people who need it.</p>
+      <h2>Children</h2>
+      <p>Meyra is meant for users aged 18 and above. Under-18s may use it only with a parent or guardian’s involvement.</p>
+      <h2>Contact and grievances</h2>
+      {CONTACT}
+    </Page>
+  )
+}
+
+export function Terms() {
+  return (
+    <Page title="Terms of Use">
+      <p>These terms apply to your use of the Meyra app and website. By creating an account or placing an order you agree to them.</p>
+      <h2>The marketplace</h2>
+      <p>Meyra is an online marketplace. Products are listed and sold by independent, GST-registered sellers who have completed KYC with us. Each product page shows the seller’s name. The seller is responsible for the product, its description, quality and legal compliance; Meyra provides the platform, payments and customer support.</p>
+      <h2>Accounts</h2>
+      <p>Keep your login details private and make sure your information is accurate. You are responsible for activity on your account. We may suspend accounts that misuse the platform, post fake reviews or commit fraud.</p>
+      <h2>Prices and payment</h2>
+      <p>Prices are in Indian Rupees and include applicable taxes. Delivery is free on orders of ₹499 and above; otherwise a delivery fee is shown at checkout. You can pay online through Razorpay or choose cash on delivery where available.</p>
+      <h2>Cancellations</h2>
+      <p>You can cancel an item before it ships from My Orders. Online payments for cancelled items are refunded to the original payment method.</p>
+      <h2>Returns and refunds</h2>
+      <ul>
+        <li>Most items can be returned within <b>7 days of delivery</b> if they are unused, with tags and original packaging.</li>
+        <li>For hygiene reasons, opened cosmetics and personal-care products can be returned only if they arrive damaged, defective or are the wrong item. Earrings cannot be returned once worn.</li>
+        <li>Refunds for online payments go to the original payment method within 5–7 working days of the seller receiving the item. Cash-on-delivery refunds are paid by UPI or bank transfer.</li>
+      </ul>
+      <h2>Reviews</h2>
+      <p>Reviews must be honest and relate to the product. We may remove reviews that are abusive, misleading or unrelated.</p>
+      <h2>Sellers</h2>
+      <p>Sellers must hold a valid GST registration, complete KYC, list only genuine products they are allowed to sell, ship on time and honour the return policy. Meyra deducts its commission from each sale and pays the balance for delivered orders to the seller’s registered bank account.</p>
+      <h2>Liability</h2>
+      <p>To the extent permitted by law, Meyra is not liable for indirect losses. Our liability for any order is limited to the amount paid for it. Nothing in these terms affects your rights under the Consumer Protection Act, 2019.</p>
+      <h2>Law and disputes</h2>
+      <p>These terms are governed by the laws of India. Courts in Bengaluru, Karnataka have jurisdiction.</p>
+      <h2>Contact and grievances</h2>
+      {CONTACT}
+    </Page>
+  )
+}

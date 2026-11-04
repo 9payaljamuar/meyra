@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { upload } from './api'
+import { api, token, upload } from './api'
 import { useAuth } from './auth'
 
 export function useLoad<T>(fn: () => Promise<T>, deps: unknown[] = []) {
@@ -205,4 +205,37 @@ export function Doc({ url, label }: { url: string | null; label: string }) {
   return url.endsWith('.pdf')
     ? <a href={url} target="_blank" className="doc">{label}<span>PDF ↗</span></a>
     : <a href={url} target="_blank" className="doc"><img src={url} alt={label} />{label}</a>
+}
+
+export function ChangePassword() {
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [msg, setMsg] = useState<{ ok?: string; err?: string }>({})
+  const [busy, setBusy] = useState(false)
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setMsg({})
+    setBusy(true)
+    try {
+      const { token: t } = await api('/auth/password/change', { body: { current, password: next } })
+      token.set(t)
+      setCurrent('')
+      setNext('')
+      setMsg({ ok: 'Password changed. Other devices have been signed out.' })
+    } catch (e: any) {
+      setMsg({ err: e.message })
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <form className="card form" onSubmit={save}>
+      <h2>Change password</h2>
+      {msg.ok && <div className="ok">{msg.ok}</div>}
+      {msg.err && <div className="error">{msg.err}</div>}
+      <label className="field">Current password<input type="password" value={current} onChange={e => setCurrent(e.target.value)} required /></label>
+      <label className="field">New password <span className="hint">At least 6 characters</span><input type="password" value={next} onChange={e => setNext(e.target.value)} minLength={6} required /></label>
+      <button className="btn ghost" disabled={busy}>{busy ? 'Saving…' : 'Update password'}</button>
+    </form>
+  )
 }

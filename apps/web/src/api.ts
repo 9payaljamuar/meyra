@@ -28,6 +28,11 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   })
   const data = await res.json().catch(() => ({}))
+  // A stored token that the server no longer accepts (expired, password changed): sign out cleanly.
+  if (res.status === 401 && t && !path.startsWith('/auth/')) {
+    token.clear()
+    window.location.assign('/login?expired=1')
+  }
   if (!res.ok) throw new ApiError(data.error ?? 'Request failed', res.status, data.field)
   return data
 }

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'node:crypto';
 import pg from 'pg';
 import {SCHEMA} from './schema.js';
 
@@ -37,6 +38,19 @@ export async function tx<T>(fn: (c: pg.PoolClient) => Promise<T>): Promise<T> {
   }
 }
 
+const SCHEMA_VERSION = crypto.createHash('sha1').update(SCHEMA).digest('hex').slice(0, 12);
+
+/** Applies the (idempotent) schema, skipping the DDL entirely when this exact schema was already applied. */
 export async function migrate() {
+  try {
+    const row = await one(`SELECT value FROM settings WHERE key = 'schema_version'`);
+    if (row?.value === SCHEMA_VERSION) return;
+  } catch {
+    // First run: settings table doesn't exist yet.
+  }
   await pool.query(SCHEMA);
+  await pool.query(
+    `INSERT INTO settings(key, value) VALUES ('schema_version', $1) ON CONFLICT (key) DO UPDATE SET value = $1`,
+    [JSON.stringify(SCHEMA_VERSION)],
+  );
 }

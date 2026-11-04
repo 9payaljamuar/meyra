@@ -23,6 +23,7 @@ import WriteReviewScreen from './src/screens/WriteReviewScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import ReturnRequestScreen from './src/screens/ReturnRequestScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import Splash from './src/components/Splash';
 
 const Tab = createBottomTabNavigator();
@@ -102,6 +103,7 @@ function Root() {
             <Stack.Screen name="ReturnRequest" component={ReturnRequestScreen} options={{animation: 'slide_from_right'}} />
             <Stack.Screen name="Login" component={LoginScreen} options={{animation: 'slide_from_bottom', statusBarStyle: 'light'}} />
             <Stack.Screen name="SellerSignup" component={SellerSignupScreen} options={{animation: 'slide_from_right'}} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{animation: 'slide_from_right'}} />
           </Stack.Navigator>
         </NavigationContainer>
       )}

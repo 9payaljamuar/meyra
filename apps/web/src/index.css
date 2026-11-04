@@ -217,3 +217,13 @@ tr.click:hover td { background: #fbf6ec; }
 .guide .ex p { margin: 0; padding: 8px 10px; }
 .guide .ex.good p { color: var(--green); }
 .guide .ex.bad p { color: var(--red); }
+
+/* ---------- legal pages ---------- */
+.legal { min-height: 100vh; background: var(--bg); }
+.legal header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--card); }
+.legal header img { width: 110px; }
+.legal header nav { display: flex; gap: 18px; }
+.legal article { max-width: 760px; margin: 0 auto; padding: 36px 20px 80px; line-height: 1.7; font-size: 15px; }
+.legal h1 { font-size: 34px; }
+.legal h2 { font-size: 21px; margin-top: 30px; }
+.legal ul { padding-left: 20px; }

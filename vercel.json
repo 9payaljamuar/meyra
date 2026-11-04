@@ -4,13 +4,32 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build -w apps/web",
   "outputDirectory": "apps/web/dist",
-  "regions": ["bom1"],
+  "regions": [
+    "bom1"
+  ],
   "functions": {
-    "api/index.ts": { "maxDuration": 30 }
+    "api/index.ts": {
+      "maxDuration": 30
+    }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
-    { "source": "/payment-done", "destination": "/api" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/payment-done",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/expire-payments",
+      "schedule": "0 3 * * *"
+    }
   ]
 }

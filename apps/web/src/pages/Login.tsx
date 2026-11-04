@@ -23,7 +23,9 @@ export default function Login() {
   const [params] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [err, setErr] = useState<string | null>(params.get('buyer') ? 'This portal is for sellers and admins. Customers shop in the Meyra app.' : null)
+  const [err, setErr] = useState<string | null>(
+    params.get('buyer') ? 'This portal is for sellers and admins. Customers shop in the Meyra app.'
+      : params.get('expired') ? 'Your session expired. Please log in again.' : null)
   const [busy, setBusy] = useState(false)
 
   const submit = async (e: React.FormEvent) => {
@@ -50,11 +52,17 @@ export default function Login() {
       <form className="form" onSubmit={submit} style={{ marginTop: 18 }}>
         {err && <div className="error">{err}</div>}
         <label className="field">Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus /></label>
-        <label className="field">Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} required /></label>
+        <label className="field">
+          <span className="row">Password<span className="spacer" /><Link to="/forgot" className="small">Forgot password?</Link></span>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+        </label>
         <button className="btn" disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
       </form>
       <p style={{ marginTop: 22 }}>
         New seller? <Link to="/seller/register"><b>Register with your GST number</b></Link>
+      </p>
+      <p className="small muted" style={{ marginTop: 28 }}>
+        <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Use</Link> · support@meyraglory.com
       </p>
     </AuthLayout>
   )

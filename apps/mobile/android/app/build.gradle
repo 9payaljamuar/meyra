@@ -79,11 +79,13 @@ android {
 
     namespace "com.meyraapp"
     defaultConfig {
-        applicationId "com.meyraapp"
+        // Play Store identity: cannot change after the first upload.
+        applicationId "com.meyraglory.shop"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // Bump versionCode by 1 for every Play Store upload.
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
     }
     signingConfigs {
         debug {
@@ -92,15 +94,24 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Upload key for Play Store builds. Values live outside the repo, in ~/.gradle/gradle.properties:
+        //   MEYRA_UPLOAD_STORE_FILE, MEYRA_UPLOAD_STORE_PASSWORD, MEYRA_UPLOAD_KEY_ALIAS, MEYRA_UPLOAD_KEY_PASSWORD
+        if (project.hasProperty('MEYRA_UPLOAD_STORE_FILE')) {
+            release {
+                storeFile file(MEYRA_UPLOAD_STORE_FILE)
+                storePassword MEYRA_UPLOAD_STORE_PASSWORD
+                keyAlias MEYRA_UPLOAD_KEY_ALIAS
+                keyPassword MEYRA_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Signed with the upload key when it's configured; otherwise the debug key (fine for sharing test APKs).
+            signingConfig project.hasProperty('MEYRA_UPLOAD_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }

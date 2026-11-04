@@ -227,7 +227,26 @@ export async function mockApi(path: string, method: string, body: any, token: st
     }
     return session(u);
   }
+  if (route === '/auth/me' && method === 'DELETE') {
+    const u = await me(token);
+    await save(K.users, (await users()).filter(x => x.id !== u.id));
+    return {ok: true};
+  }
   if (route === '/auth/me') return publicUser(await me(token));
+  if (route === '/auth/password/forgot') {
+    if (!/^\S+@\S+\.\S+$/.test(body?.email ?? '')) fail('Enter a valid email');
+    return {ok: true, devCode: '123456'};
+  }
+  if (route === '/auth/password/reset') {
+    if (body.code !== '123456') fail('Incorrect code. (Preview code: 123456)');
+    if (String(body.password ?? '').length < 6) fail('Password must be at least 6 characters');
+    const all = await users();
+    const u = all.find(x => x.email.toLowerCase() === String(body.email).toLowerCase());
+    if (!u) fail('Account not found');
+    u!.password = body.password;
+    await save(K.users, all);
+    return session(u!);
+  }
   if (route === '/auth/register-seller') {
     if (!body?.gstin) fail('Enter your GSTIN');
     return session({id: 999, name: body.name, email: body.email, password: ''});

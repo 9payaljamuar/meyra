@@ -51,6 +51,16 @@ export async function markPaid(orderId: number, paymentId: string) {
   await announceOrder(orderId);
 }
 
+const PAYMENT_TIMEOUT_MIN = 30;
+
+/** Online orders left unpaid (buyer closed the app mid-payment) give their stock back after 30 minutes. */
+export async function expireStalePayments() {
+  const stale = await q(
+    `SELECT id FROM orders WHERE payment_status = 'pending' AND created_at < now() - interval '${PAYMENT_TIMEOUT_MIN} minutes' LIMIT 50`);
+  for (const o of stale) await markPaymentFailed(o.id);
+  return stale.length;
+}
+
 /** Payment abandoned or failed: release stock and cancel the order. */
 export async function markPaymentFailed(orderId: number) {
   await tx(async c => {

@@ -7,7 +7,7 @@ import multer from 'multer';
 import {ZodError} from 'zod';
 import {migrate, one} from './db.js';
 import {requireAuth} from './auth.js';
-import {HttpError, markPaid, markPaymentFailed} from './lifecycle.js';
+import {expireStalePayments, HttpError, markPaid, markPaymentFailed} from './lifecycle.js';
 import {verifyWebhook} from './providers/payments.js';
 import {saveFile, UPLOAD_DIR} from './providers/storage.js';
 import authRoutes from './routes/auth.js';
@@ -43,6 +43,13 @@ api.post('/webhooks/razorpay', express.raw({type: '*/*'}), async (req, res) => {
     if (['payment_link.expired', 'payment_link.cancelled'].includes(evt.event)) await markPaymentFailed(order.id);
   }
   res.json({ok: true});
+});
+
+// Vercel Cron (see vercel.json) or any scheduler: housekeeping. Protected by CRON_SECRET when set.
+api.get('/cron/expire-payments', async (req, res) => {
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.header('authorization') !== `Bearer ${secret}`) return res.status(401).json({error: 'Unauthorized'});
+  res.json({expired: await expireStalePayments()});
 });
 
 api.use(express.json({limit: '1mb'}));

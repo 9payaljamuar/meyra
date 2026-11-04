@@ -3,7 +3,7 @@ import {z} from 'zod';
 import {one, q, tx} from '../db.js';
 import {requireAuth} from '../auth.js';
 import {commissionPct, getSettings, round2} from '../commission.js';
-import {addTracking, announceOrder, HttpError, markPaid, markPaymentFailed, refundItem, RETURN_WINDOW_DAYS} from '../lifecycle.js';
+import {addTracking, announceOrder, expireStalePayments, HttpError, markPaid, markPaymentFailed, refundItem, RETURN_WINDOW_DAYS} from '../lifecycle.js';
 import {createPaymentLink, fetchPaymentLink, paymentsLive} from '../providers/payments.js';
 import {notifyLater} from '../providers/messaging.js';
 
@@ -39,6 +39,7 @@ const OrderBody = z.object({
 
 r.post('/', async (req, res) => {
   const b = OrderBody.parse(req.body);
+  await expireStalePayments();
   const settings = await getSettings();
   const online = b.paymentMethod === 'ONLINE';
 

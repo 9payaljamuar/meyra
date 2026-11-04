@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, inr } from '../../api'
+import { ChangePassword } from '../../ui'
 
 export default function AdminSettings() {
   const [def, setDef] = useState('')
@@ -62,6 +63,8 @@ export default function AdminSettings() {
           </table>
         </div>
       </div>
+      <h2 className="section-title">Your admin account</h2>
+      <div style={{ maxWidth: 420 }}><ChangePassword /></div>
     </>
   )
 }

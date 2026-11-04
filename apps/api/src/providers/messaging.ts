@@ -51,9 +51,17 @@ async function sms(userId: number | null, phone: string | null | undefined, titl
   }
 }
 
-async function email(userId: number | null, to: string | null | undefined, title: string, body: string) {
-  if (!to || to.endsWith('@phone.meyra.app')) return;
-  if (!mailer) return record({userId, channel: 'email', to, title, body, status: 'logged'});
+/** Send one email. `logBody` replaces the body in the outbox (e.g. to hide a code). */
+export async function sendEmail(userId: number | null, to: string, title: string, body: string, logBody?: string) {
+  return email(userId, to, title, body, logBody);
+}
+
+async function email(userId: number | null, to: string | null | undefined, title: string, body: string, logBody = body) {
+  if (!to || to.endsWith('@phone.meyra.app') || to.endsWith('@meyra.invalid')) return;
+  if (!mailer) {
+    if (logBody !== body) console.log(`[email] ${to}: ${body}`);
+    return record({userId, channel: 'email', to, title, body: logBody, status: 'logged'});
+  }
   try {
     await mailer.sendMail({
       from: MAIL_FROM, to, subject: title, text: body,
@@ -61,9 +69,9 @@ async function email(userId: number | null, to: string | null | undefined, title
         <h2 style="color:#B8862B;font-weight:600;margin:0 0 12px">Meyra</h2>
         <p style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6">${body.replace(/\n/g, '<br>')}</p></div>`,
     });
-    await record({userId, channel: 'email', to, title, body, status: 'sent'});
+    await record({userId, channel: 'email', to, title, body: logBody, status: 'sent'});
   } catch (e: any) {
-    await record({userId, channel: 'email', to, title, body, status: 'failed', error: e.message});
+    await record({userId, channel: 'email', to, title, body: logBody, status: 'failed', error: e.message});
   }
 }
 

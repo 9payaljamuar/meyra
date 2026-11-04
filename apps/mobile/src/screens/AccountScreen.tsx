@@ -1,13 +1,39 @@
 import React from 'react';
-import {Alert, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon, {IconName} from '../components/Icon';
 import {Header} from '../components/ui';
 import {colors, fonts, radius} from '../theme';
 import {useStore} from '../store';
+import {useToast} from '../components/fx';
+import {SITE_URL, SUPPORT_EMAIL} from '../config';
 
 export default function AccountScreen({navigation}: any) {
-  const {user, logout, wishlist} = useStore();
+  const {user, logout, wishlist, deleteAccount} = useStore();
+  const toast = useToast();
+
+  const confirmDelete = () =>
+    Alert.alert(
+      'Delete your account?',
+      'This permanently removes your profile, saved addresses, wishlist and reviews. Past orders are kept anonymously for tax records. This cannot be undone.',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {text: 'Delete account', style: 'destructive', onPress: async () => {
+          try {
+            await deleteAccount();
+            toast('Your account has been deleted');
+          } catch (e: any) {
+            Alert.alert('Could not delete account', e.message);
+          }
+        }},
+      ],
+    );
+
+  const help: {label: string; onPress: () => void}[] = [
+    {label: 'Help & support', onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)},
+    {label: 'Privacy policy', onPress: () => Linking.openURL(`${SITE_URL}/privacy`)},
+    {label: 'Terms of use', onPress: () => Linking.openURL(`${SITE_URL}/terms`)},
+  ];
   const need = (screen: string) => () => navigation.navigate(user ? screen : 'Login', user ? undefined : {next: screen});
 
   const rows: {icon: IconName; label: string; sub: string; onPress: () => void}[] = [
@@ -46,11 +72,25 @@ export default function AccountScreen({navigation}: any) {
           ))}
         </View>
 
+        <View style={s.card}>
+          {help.map((h, i) => (
+            <Pressable key={h.label} style={[s.row, i > 0 && s.rowBorder]} onPress={h.onPress}>
+              <Text style={[s.rowLabel, {flex: 1, fontWeight: '500'}]}>{h.label}</Text>
+              <Icon name="right" size={18} color={colors.muted} />
+            </Pressable>
+          ))}
+        </View>
+
         {user && (
-          <Pressable style={[s.card, s.row]} onPress={() =>
-            Alert.alert('Log out?', undefined, [{text: 'Cancel'}, {text: 'Log out', style: 'destructive', onPress: logout}])}>
-            <Text style={[s.rowLabel, {color: colors.red}]}>Log out</Text>
-          </Pressable>
+          <View style={s.card}>
+            <Pressable style={s.row} onPress={() =>
+              Alert.alert('Log out?', undefined, [{text: 'Cancel'}, {text: 'Log out', style: 'destructive', onPress: logout}])}>
+              <Text style={s.rowLabel}>Log out</Text>
+            </Pressable>
+            <Pressable style={[s.row, s.rowBorder]} onPress={confirmDelete}>
+              <Text style={[s.rowLabel, {color: colors.red, fontWeight: '500'}]}>Delete account</Text>
+            </Pressable>
+          </View>
         )}
 
         <Text style={s.foot}>Meyra · support@meyraglory.com · +91 993-959-0555</Text>

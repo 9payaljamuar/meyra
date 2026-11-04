@@ -101,3 +101,15 @@ test('online payment, failed payment restock, timed shipping, return → refund'
     ['pending_payment', 'placed', 'shipped', 'delivered', 'return_requested', 'return_approved', 'refunded']);
   (Date.now as jest.Mock).mockRestore();
 }, 30_000);
+
+test('forgot password, reset and account deletion (mock)', async () => {
+  const f = await call('/auth/password/forgot', {email: 'customer@meyra.app'});
+  expect(f.devCode).toBe('123456');
+  await expect(call('/auth/password/reset', {email: 'customer@meyra.app', code: '000000', password: 'abcdef'})).rejects.toThrow('Incorrect');
+  const s = await call('/auth/password/reset', {email: 'customer@meyra.app', code: '123456', password: 'newpass9'});
+  expect(s.user.email).toBe('customer@meyra.app');
+  await expect(call('/auth/login', {email: 'customer@meyra.app', password: 'customer123'})).rejects.toThrow('Wrong');
+  const {token} = await call('/auth/login', {email: 'customer@meyra.app', password: 'newpass9'});
+  await call('/auth/me', undefined, token, 'DELETE');
+  await expect(call('/auth/me', undefined, token)).rejects.toThrow('log in');
+}, 30_000);

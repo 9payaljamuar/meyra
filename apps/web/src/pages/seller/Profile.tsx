@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../../api'
 import { useAuth } from '../../auth'
-import { Badge, ImagePicker } from '../../ui'
+import { Badge, ChangePassword, ImagePicker } from '../../ui'
 import { KycNotice } from './Dashboard'
 
 export default function SellerProfile() {
@@ -48,6 +48,7 @@ export default function SellerProfile() {
   if (!p) return null
   const missing = !f.gstDoc.length || !f.panDoc.length || !f.bankAccount
   return (
+    <>
     <form onSubmit={save}>
       <div className="page-head">
         <div>
@@ -93,5 +94,7 @@ export default function SellerProfile() {
         </div>
       </div>
     </form>
+    <div style={{ marginTop: 16, maxWidth: 420 }}><ChangePassword /></div>
+    </>
   )
 }

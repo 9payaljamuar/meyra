@@ -12,7 +12,8 @@
     "web": "npm run dev -w apps/web",
     "seed": "npm run seed -w apps/api",
     "dev": "npm run db:up && concurrently -n api,web -c yellow,cyan \"npm run api\" \"npm run web\"",
-    "deploy": "vercel deploy --prod"
+    "deploy": "vercel deploy --prod",
+    "create-admin": "npm run create-admin -w apps/api --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

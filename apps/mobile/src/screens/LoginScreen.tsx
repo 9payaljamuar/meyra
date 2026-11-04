@@ -187,7 +187,7 @@ export default function LoginScreen({navigation, route}: any) {
                   <FloatingField label="Password" value={password} onChangeText={setPassword} secure
                     onSubmitEditing={submitEmail} returnKeyType="go" />
                   {mode === 'login' && (
-                    <Pressable onPress={() => fail('Password reset arrives with the live launch. Try phone login meanwhile.')} style={{alignSelf: 'flex-end', marginTop: -6}}>
+                    <Pressable onPress={() => navigation.navigate('ForgotPassword', {email: email.trim(), next: route.params?.next})} style={{alignSelf: 'flex-end', marginTop: -6}}>
                       <Text style={s.link}>Forgot password?</Text>
                     </Pressable>
                   )}

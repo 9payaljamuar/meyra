@@ -34,6 +34,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Add photos to your product reviews and return requests.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos for your product reviews and return requests.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
 	<key>RCTNewArchEnabled</key>

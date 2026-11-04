@@ -166,4 +166,16 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id, created_at DESC);
+
+-- ===== v3: sessions, password reset, account deletion =====
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 0;  -- bump to sign out everywhere
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  email      TEXT PRIMARY KEY,
+  code_hash  TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  attempts   INT NOT NULL DEFAULT 0,
+  sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 `;

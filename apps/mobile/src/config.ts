@@ -5,5 +5,7 @@ export const USE_MOCK = true;
 // the dev machine's LAN IP while testing, the public HTTPS URL once deployed.
 export const API_URL = 'http://192.168.29.94:4000/api';
 
-// Seller & admin web portal (opened from the "Sell on Meyra" flow).
-export const PARTNER_URL = 'http://192.168.29.94:5175/login';
+// Public website: seller/admin portal plus the Privacy Policy and Terms pages.
+export const SITE_URL = 'http://192.168.29.94:5175';
+export const PARTNER_URL = `${SITE_URL}/login`;
+export const SUPPORT_EMAIL = 'support@meyraglory.com';

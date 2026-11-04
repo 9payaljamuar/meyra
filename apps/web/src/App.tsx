@@ -4,6 +4,8 @@ import { Shell, useLoad } from './ui'
 import { api } from './api'
 import Login from './pages/Login'
 import SellerRegister from './pages/SellerRegister'
+import Forgot from './pages/Forgot'
+import { Privacy, Terms } from './pages/Legal'
 import SellerDashboard from './pages/seller/Dashboard'
 import SellerProducts from './pages/seller/Products'
 import ProductForm from './pages/seller/ProductForm'
@@ -78,6 +80,9 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/seller/register" element={<SellerRegister />} />
+      <Route path="/forgot" element={<Forgot />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       <Route path="/seller" element={<SellerArea />}>
         <Route index element={<SellerDashboard />} />
         <Route path="products" element={<SellerProducts />} />

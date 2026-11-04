@@ -88,6 +88,9 @@ type Ctx = {
   sendOtp: (phone: string) => Promise<string | undefined>;
   verifyOtp: (phone: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<string | undefined>;
+  resetPassword: (email: string, code: string, password: string) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 };
 
 const StoreCtx = createContext<Ctx>(null as unknown as Ctx);
@@ -171,6 +174,14 @@ export function StoreProvider({children}: {children: React.ReactNode}) {
         signIn('/auth/register', {name, email, password, phone: phone || undefined}),
       sendOtp: async phone => (await api<{devCode?: string}>('/auth/otp/send', {body: {phone}})).devCode,
       verifyOtp: (phone, code) => signIn('/auth/otp/verify', {phone, code}),
+      forgotPassword: async email => (await api<{devCode?: string}>('/auth/password/forgot', {body: {email}})).devCode,
+      resetPassword: (email, code, password) => signIn('/auth/password/reset', {email, code, password}),
+      deleteAccount: async () => {
+        await api('/auth/me', {method: 'DELETE'});
+        await session.set(null);
+        dispatch({type: 'user', user: null});
+        dispatch({type: 'clear'});
+      },
       logout: async () => {
         await session.set(null);
         dispatch({type: 'user', user: null});
