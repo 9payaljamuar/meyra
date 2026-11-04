@@ -6,7 +6,7 @@ import {ALL_CATEGORIES} from '../catalog.js';
 import {getSettings} from '../commission.js';
 import {PRODUCT_SELECT, serializeProduct} from '../products.js';
 import {addTracking, HttpError, refundItem} from '../lifecycle.js';
-import {emailLive, notifyLater, smsLive} from '../providers/messaging.js';
+import {emailLive, fixedTestOtp, notifyLater, smsLive} from '../providers/messaging.js';
 import {gstLookupLive, validateGstin, verifyGstin} from '../providers/gst.js';
 import {paymentsLive} from '../providers/payments.js';
 import {shiprocketLive} from '../providers/shipping.js';
@@ -168,7 +168,7 @@ r.post('/order-items/:id/manual-refund-done', async (req, res) => {
 r.get('/integrations', (_req, res) => {
   res.json([
     {key: 'payments', name: 'Razorpay payments', live: paymentsLive, env: 'RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET'},
-    {key: 'sms', name: 'SMS & OTP (MSG91)', live: smsLive, env: 'MSG91_AUTH_KEY, MSG91_OTP_TEMPLATE_ID, MSG91_FLOW_TEMPLATE_ID'},
+    {key: 'sms', name: fixedTestOtp ? `SMS & OTP (MSG91) — FIXED TEST OTP ${fixedTestOtp} ACTIVE` : 'SMS & OTP (MSG91)', live: smsLive, env: 'MSG91_AUTH_KEY, MSG91_OTP_TEMPLATE_ID, MSG91_FLOW_TEMPLATE_ID, FIXED_TEST_OTP'},
     {key: 'email', name: 'Email (SMTP)', live: emailLive, env: 'SMTP_URL, MAIL_FROM'},
     {key: 'gst', name: 'Live GSTIN lookup', live: gstLookupLive, env: 'GST_LOOKUP_URL, GST_LOOKUP_KEY'},
     {key: 'shipping', name: 'Shiprocket shipping', live: shiprocketLive, env: 'SHIPROCKET_EMAIL, SHIPROCKET_PASSWORD, SHIPROCKET_PICKUP_LOCATION'},

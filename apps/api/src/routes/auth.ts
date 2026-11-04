@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import {z} from 'zod';
 import {one, q, tx} from '../db.js';
 import {validateGstin, verifyGstin} from '../providers/gst.js';
-import {emailLive, notifyLater, sendEmail, sendOtpSms, smsLive} from '../providers/messaging.js';
+import {emailLive, fixedTestOtp, notifyLater, sendEmail, sendOtpSms, smsLive} from '../providers/messaging.js';
 import {AuthUser, requireAuth, sign, tooMany} from '../auth.js';
 
 const r = Router();
@@ -115,12 +115,12 @@ const Phone = z.string().trim().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mo
 r.post('/otp/send', async (req, res) => {
   const phone = Phone.parse(req.body.phone);
   if (tooMany(`otp:${ip(req)}`, 10, 60 * 60_000)) return res.status(429).json({error: 'Too many requests. Please try again later.'});
-  if (!smsLive && process.env.NODE_ENV === 'production')
+  if (!smsLive && !fixedTestOtp && process.env.NODE_ENV === 'production')
     return res.status(503).json({error: 'Login by mobile number is coming soon. Please use email for now.'});
   const prev = await one('SELECT sent_at FROM otp_codes WHERE phone = $1', [phone]);
   if (prev && Date.now() - new Date(prev.sent_at).getTime() < OTP_RESEND_SEC * 1000)
     return res.status(429).json({error: `Please wait ${OTP_RESEND_SEC} seconds before requesting another code`});
-  const code = String(crypto.randomInt(100000, 1000000));
+  const code = fixedTestOtp ?? String(crypto.randomInt(100000, 1000000));
   await q(
     `INSERT INTO otp_codes(phone, code_hash, expires_at, attempts, sent_at)
      VALUES ($1, $2, now() + interval '${OTP_TTL_MIN} minutes', 0, now())
@@ -129,7 +129,7 @@ r.post('/otp/send', async (req, res) => {
   );
   await sendOtpSms(phone, code);
   // Without an SMS provider, hand the code back so dev and test builds can log in.
-  res.json({ok: true, ...(smsLive ? {} : devOnly(code))});
+  res.json({ok: true, ...(smsLive ? {} : fixedTestOtp ? {devCode: fixedTestOtp} : devOnly(code))});
 });
 
 r.post('/otp/verify', async (req, res) => {
@@ -171,7 +171,7 @@ r.post('/password/forgot', async (req, res) => {
   const u = await one('SELECT id, name FROM users WHERE email = $1 AND deleted_at IS NULL', [email]);
   // Same answer whether or not the account exists, so emails can't be probed.
   if (!u) return res.json({ok: true});
-  const code = String(crypto.randomInt(100000, 1000000));
+  const code = fixedTestOtp ?? String(crypto.randomInt(100000, 1000000));
   await q(
     `INSERT INTO password_resets(email, code_hash, expires_at) VALUES ($1, $2, now() + interval '${RESET_TTL_MIN} minutes')
      ON CONFLICT (email) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, attempts = 0, sent_at = now()`,

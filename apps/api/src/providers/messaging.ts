@@ -11,6 +11,14 @@ const SMTP_URL = process.env.SMTP_URL;
 const MAIL_FROM = process.env.MAIL_FROM ?? 'Meyra <no-reply@meyraglory.com>';
 
 export const smsLive = !!(MSG91_KEY && MSG91_OTP_TEMPLATE);
+
+/**
+ * Testing aid: with FIXED_TEST_OTP=123456 (6 digits) and no SMS provider, every phone login uses that code.
+ * Anyone knowing a phone number can then sign in as that customer — never leave it on with real users.
+ * It switches itself off as soon as MSG91 keys are configured.
+ */
+export const fixedTestOtp =
+  !smsLive && /^\d{6}$/.test(process.env.FIXED_TEST_OTP ?? '') ? process.env.FIXED_TEST_OTP! : null;
 export const emailLive = !!SMTP_URL;
 
 const mailer = SMTP_URL ? nodemailer.createTransport(SMTP_URL) : null;

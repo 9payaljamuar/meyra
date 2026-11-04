@@ -6,7 +6,7 @@ import {CATEGORIES, GROUPS, HAIR_TYPES, SIZES, SKIN_TYPES} from '../catalog.js';
 import {PRODUCT_SELECT, serializeProduct} from '../products.js';
 import {GST_RATES, STATE_NAMES, TAX_DEFAULTS} from '../tax.js';
 import {paymentsLive} from '../providers/payments.js';
-import {emailLive, smsLive} from '../providers/messaging.js';
+import {emailLive, fixedTestOtp, smsLive} from '../providers/messaging.js';
 
 const r = Router();
 
@@ -16,7 +16,7 @@ r.get('/meta', (_req, res) => {
     // What clients may offer right now. Outside production, test modes count as available.
     features: {
       onlinePayment: paymentsLive || process.env.NODE_ENV !== 'production',
-      phoneLogin: smsLive || process.env.NODE_ENV !== 'production',
+      phoneLogin: smsLive || !!fixedTestOtp || process.env.NODE_ENV !== 'production',
       emailReset: emailLive || process.env.NODE_ENV !== 'production',
       testMode: !paymentsLive,
     }});
