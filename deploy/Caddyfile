@@ -1,0 +1,6 @@
+# DOMAIN can list several hostnames, comma-separated, e.g. "partners.meyraglory.com, 13-206-171-171.sslip.io".
+# Caddy obtains and renews a Let's Encrypt certificate for each one.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:4000
+}

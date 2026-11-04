@@ -39,9 +39,10 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN to the site hostname}
-    command: caddy reverse-proxy --from ${DOMAIN} --to app:4000
+      DOMAIN: ${DOMAIN:?set DOMAIN to the site hostname(s), comma-separated}
+    command: caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
     depends_on:
       - app
