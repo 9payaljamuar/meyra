@@ -5,7 +5,7 @@ import { api } from './api'
 import Login from './pages/Login'
 import SellerRegister from './pages/SellerRegister'
 import Forgot from './pages/Forgot'
-import { Privacy, SellerAgreement, Terms } from './pages/Legal'
+import { Contact, DeleteAccount, Privacy, RefundPolicy, SellerAgreement, ShippingPolicy, Terms } from './pages/Legal'
 import Doc from './pages/Doc'
 import SellerDashboard from './pages/seller/Dashboard'
 import SellerProducts from './pages/seller/Products'
@@ -87,6 +87,10 @@ export default function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/seller-agreement" element={<SellerAgreement />} />
+      <Route path="/refund-policy" element={<RefundPolicy />} />
+      <Route path="/shipping-policy" element={<ShippingPolicy />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/delete-account" element={<DeleteAccount />} />
       <Route path="/doc/:id" element={<Doc />} />
       <Route path="/seller" element={<SellerArea />}>
         <Route index element={<SellerDashboard />} />

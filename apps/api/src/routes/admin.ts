@@ -30,7 +30,8 @@ r.get('/stats', async (_req, res) => {
        (SELECT COUNT(*) FROM products WHERE status = 'approved')::int AS live_products,
        (SELECT COUNT(*) FROM users WHERE role = 'buyer')::int AS buyers,
        (SELECT COUNT(*) FROM order_items WHERE status = 'return_requested')::int AS open_returns,
-       (SELECT COUNT(*) FROM order_items WHERE refund_method = 'manual' AND refund_ref IS NULL)::int AS manual_refunds`,
+       (SELECT COUNT(*) FROM order_items WHERE refund_method = 'manual' AND refund_ref IS NULL)::int AS manual_refunds,
+       (SELECT COUNT(*) FROM deletion_requests WHERE status = 'open')::int AS deletion_requests`,
   );
   const daily = await q(
     `SELECT to_char(date_trunc('day', o.created_at), 'DD Mon') AS day,
@@ -160,6 +161,17 @@ r.post('/order-items/:id/manual-refund-done', async (req, res) => {
   const it = await one(`UPDATE order_items SET refund_ref = $2 WHERE id = $1 AND refund_method = 'manual' RETURNING *`, [Number(req.params.id), reference]);
   if (!it) throw new HttpError(404, 'No pending manual refund for this item');
   await addTracking(it.id, it.status, `Refund paid (ref ${reference}).`);
+  res.json({ok: true});
+});
+
+// ---- Account deletion requests (from the public web form) ----
+
+r.get('/deletion-requests', async (_req, res) => {
+  res.json(await q(`SELECT * FROM deletion_requests ORDER BY status, id DESC LIMIT 200`));
+});
+
+r.post('/deletion-requests/:id/done', async (req, res) => {
+  await q(`UPDATE deletion_requests SET status = 'done', done_at = now() WHERE id = $1`, [Number(req.params.id)]);
   res.json({ok: true});
 });
 

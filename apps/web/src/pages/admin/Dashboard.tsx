@@ -42,6 +42,10 @@ export default function AdminDashboard() {
               <span>COD refunds to pay manually</span><span className="spacer" />
               <b style={{ fontSize: 20, color: s.manual_refunds ? 'var(--red)' : 'var(--muted)' }}>{s.manual_refunds}</b>
             </Link>
+            <a href="#deletion" className="row card" style={{ padding: 14 }}>
+              <span>Account deletion requests</span><span className="spacer" />
+              <b style={{ fontSize: 20, color: s.deletion_requests ? 'var(--red)' : 'var(--muted)' }}>{s.deletion_requests}</b>
+            </a>
           </div>
         </div>
         <div className="card">
@@ -60,6 +64,34 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+      <DeletionRequests />
     </>
+  )
+}
+
+function DeletionRequests() {
+  const { data, reload } = useLoad<any[]>(() => api('/admin/deletion-requests'))
+  if (!data?.length) return null
+  return (
+    <div id="deletion" style={{ marginTop: 20 }}>
+      <h2 className="section-title">Account deletion requests</h2>
+      <p className="muted small">From the public /delete-account page. Verify it’s the account owner (reply from their email / call their number), delete or anonymise the customer, then mark done. Google Play expects this within a reasonable time.</p>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>Received</th><th>Contact</th><th>Reason</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {data.map(r => (
+              <tr key={r.id}>
+                <td className="small">{new Date(r.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                <td><b>{r.contact}</b></td>
+                <td className="small">{r.reason ?? '—'}</td>
+                <td><span className={`badge ${r.status === 'done' ? 'b-approved' : 'b-pending'}`}>{r.status}</span></td>
+                <td className="num">{r.status === 'open' && <button className="btn sm" onClick={() => api(`/admin/deletion-requests/${r.id}/done`, { body: {} }).then(reload)}>Mark done</button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   )
 }

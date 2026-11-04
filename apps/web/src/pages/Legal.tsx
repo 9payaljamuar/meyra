@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { api } from '../api'
 
 // Public policy pages (linked from the app, the Play Store listing and Razorpay onboarding).
 // Drafted for an Indian marketplace (IT Act 2000, Consumer Protection (E-Commerce) Rules 2020, DPDP Act 2023);
@@ -19,7 +21,7 @@ function Page({ title, children }: { title: string; children: React.ReactNode })
     <div className="legal">
       <header>
         <Link to="/"><img src="/logo.jpg" alt="Meyra" /></Link>
-        <nav><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><Link to="/seller-agreement">Seller Agreement</Link></nav>
+        <nav><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><Link to="/refund-policy">Refunds</Link><Link to="/shipping-policy">Shipping</Link><Link to="/contact">Contact</Link></nav>
       </header>
       <article>
         <h1>{title}</h1>
@@ -140,6 +142,109 @@ export function SellerAgreement() {
       <p>This agreement is governed by Indian law; courts in Bengaluru, Karnataka have jurisdiction.</p>
       <h2>Contact</h2>
       {CONTACT}
+    </Page>
+  )
+}
+
+export function RefundPolicy() {
+  return (
+    <Page title="Refund & Cancellation Policy">
+      <h2>Cancelling an order</h2>
+      <ul>
+        <li>You can cancel any item before it ships from <b>My Orders</b> in the Meyra app.</li>
+        <li>If you paid online, the full amount for the cancelled item is refunded to your original payment method.</li>
+        <li>Sellers may cancel an item if it is out of stock; you are refunded in full and notified by SMS/email.</li>
+      </ul>
+      <h2>Returns</h2>
+      <ul>
+        <li>Request a return within <b>7 days of delivery</b> from My Orders, with the reason and photos if the item is damaged or wrong.</li>
+        <li>Items must be unused, with original tags and packaging.</li>
+        <li>Opened cosmetics and personal-care products, and earrings, can be returned only if they arrive damaged, defective, expired or are the wrong item.</li>
+        <li>The seller reviews the request within 2 working days. Once approved, the item is picked up from your address.</li>
+      </ul>
+      <h2>Refunds</h2>
+      <ul>
+        <li>Refunds are issued after the returned item reaches the seller and passes inspection.</li>
+        <li><b>Online payments</b> (UPI, cards, netbanking, wallets): refunded to the original payment method through Razorpay, usually within <b>5–7 working days</b>.</li>
+        <li><b>Cash on delivery</b>: refunded by UPI or bank transfer to the details you share with our support team, within 7 working days.</li>
+        <li>Delivery charges are refunded only if the whole order is returned because of a seller error.</li>
+      </ul>
+      <h2>Need help?</h2>
+      {CONTACT}
+    </Page>
+  )
+}
+
+export function ShippingPolicy() {
+  return (
+    <Page title="Shipping Policy">
+      <ul>
+        <li>We deliver across India through courier partners. Each seller ships their items separately, so one order may arrive in more than one parcel.</li>
+        <li>Sellers dispatch orders within <b>2 working days</b>. Delivery usually takes <b>3–7 working days</b> after dispatch, depending on your pincode.</li>
+        <li>Delivery is <b>free on orders of ₹499 and above</b>; a ₹49 delivery fee applies to smaller orders and is shown at checkout.</li>
+        <li>Cash on delivery is available on most pincodes. Please keep the exact amount ready.</li>
+        <li>You get an SMS/email with the courier name and tracking number when your order ships, and can track it in My Orders.</li>
+        <li>If a parcel arrives damaged or tampered with, please refuse it or report it within 48 hours with photos so we can help.</li>
+      </ul>
+      <h2>Contact</h2>
+      {CONTACT}
+    </Page>
+  )
+}
+
+export function Contact() {
+  return (
+    <Page title="Contact Us">
+      <p>We’re here to help with orders, returns, refunds and selling on Meyra.</p>
+      <p>
+        <b>Meyra</b><br />
+        Email: <a href="mailto:support@meyraglory.com">support@meyraglory.com</a><br />
+        Phone / WhatsApp: +91 993-959-0555 (Mon–Sat, 10 AM – 7 PM)<br />
+        Bengaluru, Karnataka 560075, India
+      </p>
+      <p>Sellers can also log in to the <Link to="/login">Meyra Partner Hub</Link>.</p>
+      <h2>Grievance Officer</h2>
+      {CONTACT}
+    </Page>
+  )
+}
+
+export function DeleteAccount() {
+  const [contact, setContact] = useState('')
+  const [reason, setReason] = useState('')
+  const [done, setDone] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErr(null)
+    try {
+      await api('/deletion-requests', { body: { contact, reason: reason || undefined } })
+      setDone(true)
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }
+  return (
+    <Page title="Delete your Meyra account">
+      <h2>Fastest: from the app</h2>
+      <p>Open the Meyra app → <b>Account</b> → <b>Delete account</b> → confirm. Your account is deleted immediately.</p>
+      <h2>Or request it here</h2>
+      <p>No access to the app? Send us the email or mobile number on your account. We verify that it’s you and delete the account within 7 days.</p>
+      {done ? (
+        <div className="ok">Request received. We’ll contact you on {contact} to confirm, then delete the account.</div>
+      ) : (
+        <form className="form" onSubmit={submit} style={{ maxWidth: 460 }}>
+          {err && <div className="error">{err}</div>}
+          <label className="field">Email or mobile number on your account<input value={contact} onChange={e => setContact(e.target.value)} required /></label>
+          <label className="field">Reason (optional)<textarea value={reason} onChange={e => setReason(e.target.value)} /></label>
+          <button className="btn">Request account deletion</button>
+        </form>
+      )}
+      <h2>What gets deleted</h2>
+      <ul>
+        <li>Your name, email, mobile number, saved addresses, wishlist and reviews.</li>
+        <li>Order and invoice records are kept in anonymised form for up to 8 years, as required by tax law.</li>
+      </ul>
     </Page>
   )
 }

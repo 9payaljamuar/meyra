@@ -1,7 +1,7 @@
 import {Router} from 'express';
 import {z} from 'zod';
 import {one, q} from '../db.js';
-import {optionalAuth, requireAuth} from '../auth.js';
+import {optionalAuth, requireAuth, tooMany} from '../auth.js';
 import {CATEGORIES, GROUPS, HAIR_TYPES, SIZES, SKIN_TYPES} from '../catalog.js';
 import {PRODUCT_SELECT, serializeProduct} from '../products.js';
 import {GST_RATES, STATE_NAMES, TAX_DEFAULTS} from '../tax.js';
@@ -33,6 +33,17 @@ const SORTS: Record<string, string> = {
   discount: 'discount DESC',
   rating: 'rating DESC, review_count DESC',
 };
+
+/** Public web form for account deletion requests (Google Play requires one outside the app). */
+r.post('/deletion-requests', async (req, res) => {
+  const b = z.object({
+    contact: z.string().trim().min(5, 'Enter the email or mobile number on your account').max(120),
+    reason: z.string().trim().max(500).optional(),
+  }).parse(req.body);
+  if (tooMany(`delreq:${req.ip}`, 5, 60 * 60_000)) return res.status(429).json({error: 'Too many requests. Please try again later.'});
+  await q(`INSERT INTO deletion_requests(contact, reason) VALUES ($1, $2)`, [b.contact, b.reason ?? null]);
+  res.json({ok: true});
+});
 
 r.get('/products', async (req, res) => {
   const where = [`p.status = 'approved'`, `s.status = 'approved'`, `NOT s.on_holiday`];

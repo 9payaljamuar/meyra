@@ -62,7 +62,7 @@ export default function Login() {
         New seller? <Link to="/seller/register"><b>Register with your GST number</b></Link>
       </p>
       <p className="small muted" style={{ marginTop: 28 }}>
-        <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Use</Link> · support@meyraglory.com
+        <Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link> · <Link to="/refund-policy">Refunds</Link> · <Link to="/shipping-policy">Shipping</Link> · <Link to="/contact">Contact</Link>
       </p>
     </AuthLayout>
   )

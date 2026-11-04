@@ -32,6 +32,8 @@ export default function AccountScreen({navigation}: any) {
   const help: {label: string; onPress: () => void}[] = [
     {label: 'Help & support', onPress: () => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)},
     {label: 'Privacy policy', onPress: () => Linking.openURL(`${SITE_URL}/privacy`)},
+    {label: 'Returns & refunds', onPress: () => Linking.openURL(`${SITE_URL}/refund-policy`)},
+    {label: 'Shipping policy', onPress: () => Linking.openURL(`${SITE_URL}/shipping-policy`)},
     {label: 'Terms of use', onPress: () => Linking.openURL(`${SITE_URL}/terms`)},
   ];
   const need = (screen: string) => () => navigation.navigate(user ? screen : 'Login', user ? undefined : {next: screen});

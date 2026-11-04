@@ -206,6 +206,15 @@ CREATE TABLE IF NOT EXISTS invoice_counters (
   PRIMARY KEY (seller_id, fy)
 );
 
+CREATE TABLE IF NOT EXISTS deletion_requests (
+  id         SERIAL PRIMARY KEY,
+  contact    TEXT NOT NULL,          -- email or phone given on the web form
+  reason     TEXT,
+  status     TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  done_at    TIMESTAMPTZ
+);
+
 INSERT INTO settings(key, value) VALUES
   ('commission_gst_pct', '18'),
   ('tcs_pct', '1'),
