@@ -1,11 +1,10 @@
-// Preview builds run fully offline on built-in demo data. Set to false to use the real API below.
-export const USE_MOCK = true;
+// true = offline demo build with built-in data (for previews). false = the live Meyra server below.
+export const USE_MOCK = false;
 
-// Address of the Meyra API. On a phone this must be reachable over the network:
-// the dev machine's LAN IP while testing, the public HTTPS URL once deployed.
-export const API_URL = 'http://192.168.29.94:4000/api';
+// Live API (HTTPS). For local testing on the same Wi-Fi use e.g. 'http://<LAN-IP>:4000/api' with a debug build.
+export const API_URL = 'https://partners.meyraglory.com/api';
 
 // Public website: seller/admin portal plus the Privacy Policy and Terms pages.
-export const SITE_URL = 'http://192.168.29.94:5175';
+export const SITE_URL = 'https://partners.meyraglory.com';
 export const PARTNER_URL = `${SITE_URL}/login`;
 export const SUPPORT_EMAIL = 'support@meyraglory.com';

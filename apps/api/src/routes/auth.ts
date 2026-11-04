@@ -25,6 +25,7 @@ const SellerReg = Account.extend({
   gstin: z.string().trim().toUpperCase().regex(GSTIN_RE, 'Invalid GSTIN'),
   pan: z.string().trim().toUpperCase().regex(PAN_RE, 'Invalid PAN'),
   address: z.string().trim().optional(),
+  agree: z.literal(true, {errorMap: () => ({message: 'Please accept the Seller Agreement to continue'})}),
 });
 
 async function emailTaken(email: string) {
@@ -72,7 +73,7 @@ r.post('/register-seller', async (req, res) => {
       [b.name, b.email, b.phone, hash],
     );
     await c.query(
-      `INSERT INTO sellers(user_id, business_name, gstin, pan, address, gst_check) VALUES ($1,$2,$3,$4,$5,$6)`,
+      `INSERT INTO sellers(user_id, business_name, gstin, pan, address, gst_check, agreed_at) VALUES ($1,$2,$3,$4,$5,$6,now())`,
       [rows[0].id, b.businessName, b.gstin, b.pan, b.address ?? null, JSON.stringify(gstCheck)],
     );
     return rows[0] as AuthUser;
@@ -114,6 +115,8 @@ const Phone = z.string().trim().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mo
 r.post('/otp/send', async (req, res) => {
   const phone = Phone.parse(req.body.phone);
   if (tooMany(`otp:${ip(req)}`, 10, 60 * 60_000)) return res.status(429).json({error: 'Too many requests. Please try again later.'});
+  if (!smsLive && process.env.NODE_ENV === 'production')
+    return res.status(503).json({error: 'Login by mobile number is coming soon. Please use email for now.'});
   const prev = await one('SELECT sent_at FROM otp_codes WHERE phone = $1', [phone]);
   if (prev && Date.now() - new Date(prev.sent_at).getTime() < OTP_RESEND_SEC * 1000)
     return res.status(429).json({error: `Please wait ${OTP_RESEND_SEC} seconds before requesting another code`});

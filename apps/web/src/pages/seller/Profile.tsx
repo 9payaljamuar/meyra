@@ -94,7 +94,21 @@ export default function SellerProfile() {
         </div>
       </div>
     </form>
-    <div style={{ marginTop: 16, maxWidth: 420 }}><ChangePassword /></div>
+    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', marginTop: 16, alignItems: 'start' }}>
+      <div className="card form">
+        <h2>Holiday mode</h2>
+        <p className="small" style={{ margin: 0 }}>
+          {p.on_holiday
+            ? 'Your store is paused: your products are hidden from customers and can’t be ordered.'
+            : 'Going away? Pause your store so customers can’t order until you’re back. Orders already placed still need shipping.'}
+        </p>
+        <button type="button" className={`btn ${p.on_holiday ? 'green' : 'ghost'}`} onClick={async () => {
+          await api('/seller/profile', { method: 'PATCH', body: { onHoliday: !p.on_holiday } })
+          await load()
+        }}>{p.on_holiday ? 'Reopen my store' : 'Pause my store'}</button>
+      </div>
+      <ChangePassword />
+    </div>
     </>
   )
 }

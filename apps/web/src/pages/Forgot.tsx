@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { useAuth } from '../auth'
@@ -14,6 +14,8 @@ export default function Forgot() {
   const [password, setPassword] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [emailReady, setEmailReady] = useState(true)
+  useEffect(() => { api('/meta').then(m => setEmailReady(m.features?.emailReset !== false)).catch(() => {}) }, [])
 
   const send = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,7 +50,11 @@ export default function Forgot() {
   return (
     <AuthLayout title="Reset your password" text="We’ll email you a 6-digit code to set a new password.">
       <h1>Forgot password</h1>
-      {!sent ? (
+      {!emailReady ? (
+        <div className="notice" style={{ marginTop: 18 }}>
+          Password reset by email is being set up. Please email <a href="mailto:support@meyraglory.com">support@meyraglory.com</a> from your registered address and we’ll reset it for you.
+        </div>
+      ) : !sent ? (
         <form className="form" onSubmit={send} style={{ marginTop: 18 }}>
           {err && <div className="error">{err}</div>}
           <label className="field">Account email<input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus /></label>

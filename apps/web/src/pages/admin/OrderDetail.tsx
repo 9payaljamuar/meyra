@@ -45,7 +45,8 @@ export default function AdminOrderDetail() {
                   <div className="row"><Link to={`/admin/products/${it.product_id}`}><h3>{it.name}</h3></Link><Badge status={it.status} /></div>
                   <div className="muted small">{[`Qty ${it.qty}`, it.option, it.size && `Size ${it.size}`].filter(Boolean).join(' · ')} · sold by <Link to={`/admin/sellers/${it.seller_id}`}>{it.seller_name}</Link></div>
                   <dl className="kv" style={{ marginTop: 10 }}>
-                    <dt>Amount</dt><dd>{inr(it.line_total)} · commission {inr(it.commission_amt)} ({it.commission_pct}%) · seller {inr(it.seller_amt)}</dd>
+                    <dt>Amount</dt><dd>{inr(it.line_total)} · commission {inr(it.commission_amt)} ({it.commission_pct}%) + GST {inr(it.commission_gst)} · TCS {inr(it.tcs_amt)} · TDS {inr(it.tds_amt)} · seller {inr(it.seller_amt)}</dd>
+                    <dt>GST</dt><dd>HSN {it.hsn ?? '—'} · {it.gst_rate}% · taxable {inr(it.taxable_value)} · {it.igst ? `IGST ${inr(it.igst)}` : `CGST ${inr(it.cgst)} + SGST ${inr(it.sgst)}`}</dd>
                     {it.awb && <><dt>Shipment</dt><dd>{it.courier} · <a href={it.tracking_url} target="_blank">{it.awb} ↗</a></dd></>}
                     {it.return_reason && <><dt>Return reason</dt><dd>{it.return_reason}</dd></>}
                     {it.return_note && <><dt>Seller note</dt><dd>{it.return_note}</dd></>}
@@ -56,6 +57,8 @@ export default function AdminOrderDetail() {
               </div>
               <Timeline events={it.tracking ?? []} />
               <div className="row">
+                {it.label_url && <a className="btn ghost sm" href={it.label_url} target="_blank">Label</a>}
+                {it.invoice_url && <a className="btn ghost sm" href={it.invoice_url} target="_blank">Invoice {it.invoice_no}</a>}
                 {it.refund_method === 'manual' && !it.refund_ref && (
                   <>
                     <input placeholder="UPI / UTR reference" value={refs[it.id] ?? ''} onChange={e => setRefs({ ...refs, [it.id]: e.target.value })} style={{ flex: 1, minWidth: 200, width: 'auto' }} />

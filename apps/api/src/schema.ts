@@ -178,4 +178,38 @@ CREATE TABLE IF NOT EXISTS password_resets (
   attempts   INT NOT NULL DEFAULT 0,
   sent_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ===== v4: GST invoices, marketplace deductions, variant stock, seller agreement =====
+ALTER TABLE products ADD COLUMN IF NOT EXISTS hsn TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS gst_rate NUMERIC(5,2);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS variant_stock JSONB NOT NULL DEFAULT '{}';  -- {"Shade|Size": qty}
+
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS hsn TEXT;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS gst_rate NUMERIC(5,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS taxable_value NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS cgst NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS sgst NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS igst NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS commission_gst NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS tcs_amt NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS tds_amt NUMERIC(10,2) NOT NULL DEFAULT 0;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS invoice_no TEXT UNIQUE;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS invoiced_at TIMESTAMPTZ;
+
+ALTER TABLE sellers ADD COLUMN IF NOT EXISTS agreed_at TIMESTAMPTZ;
+ALTER TABLE sellers ADD COLUMN IF NOT EXISTS on_holiday BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS invoice_counters (
+  seller_id INT NOT NULL REFERENCES sellers(user_id) ON DELETE CASCADE,
+  fy        TEXT NOT NULL,
+  last      INT NOT NULL,
+  PRIMARY KEY (seller_id, fy)
+);
+
+INSERT INTO settings(key, value) VALUES
+  ('commission_gst_pct', '18'),
+  ('tcs_pct', '1'),
+  ('tds_pct', '0.1'),
+  ('platform', '{"name": "Meyra", "gstin": "", "address": "Bengaluru, Karnataka 560075"}')
+ON CONFLICT (key) DO NOTHING;
 `;

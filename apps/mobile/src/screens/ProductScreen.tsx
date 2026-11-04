@@ -37,11 +37,19 @@ export default function ProductScreen({navigation, route}: any) {
   const wished = wishlist.includes(product.id);
   const needSize = product.sizes.length > 0 && !size;
   const soldOut = product.stock === 0;
+  // Stock per shade/colour × size, when the seller tracks it.
+  const vs = product.variantStock ?? {};
+  const hasVariants = Object.keys(vs).length > 0;
+  const availFor = (o?: string, z?: string) => (hasVariants ? vs[`${o ?? ''}|${z ?? ''}`] ?? 0 : product.stock);
+  const optionAvail = (o: string) =>
+    product.sizes.length ? product.sizes.reduce((n, z) => n + availFor(o, z), 0) : availFor(o, undefined);
+  const selected = !needSize ? availFor(opt?.name, size) : null;
+  const selectionOut = selected === 0 && !soldOut;
   const others = (similar ?? []).filter(p => p.id !== product.id);
 
   const add = () => {
     setTried(true);
-    if (needSize || soldOut) return false;
+    if (needSize || soldOut || selectionOut) return false;
     addToCart(product, opt?.name, size);
     return true;
   };
@@ -133,8 +141,10 @@ export default function ProductScreen({navigation, route}: any) {
           <Text style={s.tax}>Inclusive of all taxes · Free delivery above ₹499</Text>
           {soldOut ? (
             <Text style={[s.stock, {color: colors.red}]}>Out of stock</Text>
-          ) : product.stock < 5 ? (
-            <Text style={[s.stock, {color: colors.red}]}>Hurry, only {product.stock} left!</Text>
+          ) : selectionOut ? (
+            <Text style={[s.stock, {color: colors.red}]}>This {[opt && product.option?.label.toLowerCase(), size && 'size'].filter(Boolean).join(' & ') || 'option'} is sold out</Text>
+          ) : selected != null && selected < 5 ? (
+            <Text style={[s.stock, {color: colors.red}]}>Hurry, only {selected} left!</Text>
           ) : null}
 
           {product.option && (
@@ -145,8 +155,9 @@ export default function ProductScreen({navigation, route}: any) {
               <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10}}>
                 {product.option.values.map((v, i) => (
                   <Pressable key={v.name} onPress={() => { setOptIdx(i); setSlide(0); }}
-                    style={[s.swatchRing, i === optIdx && {borderColor: colors.ink}]}>
+                    style={[s.swatchRing, i === optIdx && {borderColor: colors.ink}, optionAvail(v.name) === 0 && {opacity: 0.35}]}>
                     <View style={[s.swatch, {backgroundColor: v.hex}]} />
+                    {optionAvail(v.name) === 0 && <View style={s.strike} />}
                   </Pressable>
                 ))}
               </View>
@@ -158,8 +169,9 @@ export default function ProductScreen({navigation, route}: any) {
               <Text style={s.label}>SELECT SIZE</Text>
               <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10}}>
                 {product.sizes.map(z => (
-                  <Pressable key={z} onPress={() => setSize(z)} style={[s.size, size === z && s.sizeOn]}>
-                    <Text style={[s.sizeText, size === z && {color: '#fff'}]}>{z}</Text>
+                  <Pressable key={z} onPress={() => setSize(z)}
+                    style={[s.size, size === z && s.sizeOn, availFor(opt?.name, z) === 0 && s.sizeOut]}>
+                    <Text style={[s.sizeText, size === z && {color: '#fff'}, availFor(opt?.name, z) === 0 && {textDecorationLine: 'line-through'}]}>{z}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -239,9 +251,9 @@ export default function ProductScreen({navigation, route}: any) {
       </ScrollView>
 
       <View style={s.bar}>
-        <Button title={soldOut ? 'Sold out' : 'Add to bag'} variant="outline" style={{flex: 1}} disabled={soldOut}
+        <Button title={soldOut ? 'Sold out' : 'Add to bag'} variant="outline" style={{flex: 1}} disabled={soldOut || selectionOut}
           onPress={() => add() && toast('Added to bag', {label: 'VIEW BAG', onPress: () => navigation.navigate('Tabs', {screen: 'Cart'})})} />
-        <Button title="Buy now" style={{flex: 1}} disabled={soldOut}
+        <Button title="Buy now" style={{flex: 1}} disabled={soldOut || selectionOut}
           onPress={() => { if (add()) navigation.navigate('Tabs', {screen: 'Cart'}); }} />
       </View>
     </SafeAreaView>
@@ -297,6 +309,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8,
   },
   sizeOn: {backgroundColor: colors.ink, borderColor: colors.ink},
+  sizeOut: {opacity: 0.4},
+  strike: {position: 'absolute', width: 46, height: 1.5, backgroundColor: colors.ink, transform: [{rotate: '-45deg'}]},
   sizeText: {fontWeight: '600', color: colors.ink},
   hint: {color: colors.red, fontSize: 12, marginTop: 8},
   divider: {height: 1, backgroundColor: colors.line, marginVertical: 20},

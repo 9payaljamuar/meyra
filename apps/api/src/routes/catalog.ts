@@ -4,11 +4,22 @@ import {one, q} from '../db.js';
 import {optionalAuth, requireAuth} from '../auth.js';
 import {CATEGORIES, GROUPS, HAIR_TYPES, SIZES, SKIN_TYPES} from '../catalog.js';
 import {PRODUCT_SELECT, serializeProduct} from '../products.js';
+import {GST_RATES, STATE_NAMES, TAX_DEFAULTS} from '../tax.js';
+import {paymentsLive} from '../providers/payments.js';
+import {emailLive, smsLive} from '../providers/messaging.js';
 
 const r = Router();
 
 r.get('/meta', (_req, res) => {
-  res.json({groups: GROUPS, categories: CATEGORIES, skinTypes: SKIN_TYPES, hairTypes: HAIR_TYPES, sizes: SIZES});
+  res.json({groups: GROUPS, categories: CATEGORIES, skinTypes: SKIN_TYPES, hairTypes: HAIR_TYPES, sizes: SIZES,
+    gstRates: GST_RATES, taxDefaults: TAX_DEFAULTS, states: STATE_NAMES.map(s => s.name),
+    // What clients may offer right now. Outside production, test modes count as available.
+    features: {
+      onlinePayment: paymentsLive || process.env.NODE_ENV !== 'production',
+      phoneLogin: smsLive || process.env.NODE_ENV !== 'production',
+      emailReset: emailLive || process.env.NODE_ENV !== 'production',
+      testMode: !paymentsLive,
+    }});
 });
 
 const list = (v: unknown) =>
@@ -24,7 +35,7 @@ const SORTS: Record<string, string> = {
 };
 
 r.get('/products', async (req, res) => {
-  const where = [`p.status = 'approved'`, `s.status = 'approved'`];
+  const where = [`p.status = 'approved'`, `s.status = 'approved'`, `NOT s.on_holiday`];
   const params: unknown[] = [];
   const add = (sql: string, v: unknown) => {
     params.push(v);

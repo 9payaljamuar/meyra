@@ -10,7 +10,10 @@ const EMPTY = {
   price: '', mrp: '', stock: '10',
   images: [] as string[], skinTypes: [] as string[], hairTypes: [] as string[], sizes: [] as string[],
   optionLabel: '' as '' | 'Shade' | 'Colour', optionValues: [] as OptValue[],
+  hsn: '', gstRate: '', variantStock: {} as Record<string, string>,
 }
+
+const vkey = (option: string, size: string) => `${option}|${size}`
 
 function Checks({ all, value, onChange }: { all: string[]; value: string[]; onChange: (v: string[]) => void }) {
   return (
@@ -70,6 +73,8 @@ export default function ProductForm() {
         images: p.images, skinTypes: p.skinTypes, hairTypes: p.hairTypes, sizes: p.sizes,
         optionLabel: p.option?.label ?? '',
         optionValues: (p.option?.values ?? []).map(v => ({ ...v, images: v.images ?? [] })),
+        hsn: p.hsn ?? '', gstRate: p.gstRate != null ? String(p.gstRate) : '',
+        variantStock: Object.fromEntries(Object.entries(p.variantStock ?? {}).map(([k, v]) => [k, String(v)])),
       })
     })
   }, [id])
@@ -80,6 +85,24 @@ export default function ProductForm() {
   const off = mrp > 0 && price > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0
   const isCosmetic = f.group === 'Cosmetics'
   const isApparel = f.group === 'Apparel'
+
+  // New products start with the category's usual HSN code and GST rate; the seller can change them.
+  useEffect(() => {
+    // Also fills older products that were listed before HSN/GST fields existed (once they've loaded).
+    if (!meta || f.hsn || (id && !f.name)) return
+    const d = meta.taxDefaults[f.category]
+    if (d) setF(prev => ({ ...prev, hsn: d.hsn, gstRate: String(d.rate) }))
+  }, [meta, id, f.category, f.hsn, f.name])
+
+  // Stock is kept per shade/colour × size when the product has either.
+  const optNames = f.optionLabel ? f.optionValues.map(v => v.name.trim()).filter(Boolean) : []
+  const sizeList = isApparel ? f.sizes : []
+  const combos = (optNames.length ? optNames : ['']).flatMap(o => (sizeList.length ? sizeList : ['']).map(s => ({ o, s, key: vkey(o, s) })))
+  const hasVariants = optNames.length > 0 || sizeList.length > 0
+  const variantTotal = combos.reduce((n, c) => n + Number(f.variantStock[c.key] || 0), 0)
+  const rate = Number(f.gstRate || 0)
+  const taxable = price / (1 + rate / 100)
+  const netEstimate = price - price * 0.1 * 1.18 - taxable * 0.011
 
   const setOpt = (i: number, patch: Partial<OptValue>) =>
     set('optionValues', f.optionValues.map((v, j) => (j === i ? { ...v, ...patch } : v)))
@@ -96,7 +119,10 @@ export default function ProductForm() {
       option: f.optionLabel && f.optionValues.length
         ? { label: f.optionLabel, values: f.optionValues.map(v => ({ ...v, images: v.images.length ? v.images : undefined })) }
         : null,
+      hsn: f.hsn.trim(), gstRate: f.gstRate === '' ? undefined : Number(f.gstRate),
+      variantStock: Object.fromEntries(combos.map(c => [c.key, Number(f.variantStock[c.key] || 0)])),
     }
+    if (hasVariants) body.stock = variantTotal
     try {
       if (id) {
         const r = await api(`/seller/products/${id}`, { method: 'PUT', body })
@@ -138,12 +164,19 @@ export default function ProductForm() {
             <label className="field">Description<textarea value={f.description} onChange={e => set('description', e.target.value)} /></label>
             <div className="form-grid">
               <label className="field">Group
-                <select value={f.group} onChange={e => setF({ ...f, group: e.target.value, category: meta.categories[e.target.value][0] })}>
+                <select value={f.group} onChange={e => {
+                  const category = meta.categories[e.target.value][0]
+                  const d = meta.taxDefaults[category]
+                  setF({ ...f, group: e.target.value, category, ...(d ? { hsn: d.hsn, gstRate: String(d.rate) } : {}) })
+                }}>
                   {meta.groups.map(g => <option key={g}>{g}</option>)}
                 </select>
               </label>
               <label className="field">Category
-                <select value={f.category} onChange={e => set('category', e.target.value)}>
+                <select value={f.category} onChange={e => {
+                  const d = meta.taxDefaults[e.target.value]
+                  setF({ ...f, category: e.target.value, ...(d ? { hsn: d.hsn, gstRate: String(d.rate) } : {}) })
+                }}>
                   {meta.categories[f.group].map(c => <option key={c}>{c}</option>)}
                 </select>
               </label>
@@ -214,10 +247,36 @@ export default function ProductForm() {
           <label className="field">MRP (₹)<input type="number" min="1" step="0.01" value={f.mrp} onChange={e => set('mrp', e.target.value)} required /></label>
           <label className="field">Selling price (₹)<input type="number" min="1" step="0.01" value={f.price} onChange={e => set('price', e.target.value)} required /></label>
           {off > 0 && <div className="ok">{off}% off shown to customers</div>}
-          <label className="field">Stock<input type="number" min="0" value={f.stock} onChange={e => set('stock', e.target.value)} required /></label>
+          {hasVariants ? (
+            <div className="field">
+              <span>Stock per {[optNames.length && (f.optionLabel || '').toLowerCase(), sizeList.length && 'size'].filter(Boolean).join(' × ')} <span className="hint">Total {variantTotal}</span></span>
+              <div className="variant-grid">
+                {combos.map(c => (
+                  <label key={c.key}>
+                    <span>{[c.o, c.s].filter(Boolean).join(' · ')}</span>
+                    <input type="number" min="0" value={f.variantStock[c.key] ?? ''} placeholder="0"
+                      onChange={e => setF({ ...f, variantStock: { ...f.variantStock, [c.key]: e.target.value } })} />
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <label className="field">Stock<input type="number" min="0" value={f.stock} onChange={e => set('stock', e.target.value)} required /></label>
+          )}
+          <h2 style={{ marginTop: 6 }}>GST</h2>
+          <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+            <label className="field">HSN code<input value={f.hsn} onChange={e => set('hsn', e.target.value.replace(/\D/g, ''))} maxLength={8} required /></label>
+            <label className="field">GST rate
+              <select value={f.gstRate} onChange={e => set('gstRate', e.target.value)} required>
+                <option value="">Select</option>
+                {meta.gstRates.map(r => <option key={r} value={r}>{r}%</option>)}
+              </select>
+            </label>
+          </div>
+          <span className="muted small" style={{ marginTop: -8 }}>Prices include GST. Suggested from the category — confirm with your accountant (apparel above ₹2,500 is 18%).</span>
           {price > 0 && (
             <div className="muted small">
-              At 10% commission you receive about <b style={{ color: 'var(--ink)' }}>{inr(Math.round(price * 0.9 * 100) / 100)}</b> per unit. Your exact rate is set by Meyra.
+              You receive about <b style={{ color: 'var(--ink)' }}>{inr(Math.round(netEstimate * 100) / 100)}</b> per unit after 10% commission (+18% GST on it), 1% TCS and 0.1% TDS. TCS and TDS are credited to your GST and income-tax accounts. Your exact commission rate is set by Meyra.
             </div>
           )}
         </div>

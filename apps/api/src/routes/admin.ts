@@ -7,10 +7,11 @@ import {getSettings} from '../commission.js';
 import {PRODUCT_SELECT, serializeProduct} from '../products.js';
 import {addTracking, HttpError, refundItem} from '../lifecycle.js';
 import {emailLive, notifyLater, smsLive} from '../providers/messaging.js';
-import {gstLookupLive, verifyGstin} from '../providers/gst.js';
+import {gstLookupLive, validateGstin, verifyGstin} from '../providers/gst.js';
 import {paymentsLive} from '../providers/payments.js';
 import {shiprocketLive} from '../providers/shipping.js';
 import {s3Live} from '../providers/storage.js';
+import {docLinks} from '../documents.js';
 
 const r = Router();
 r.use(requireAuth('admin'));
@@ -297,7 +298,47 @@ r.get('/orders/:id', async (req, res) => {
   const items = await q(
     `SELECT oi.*, s.business_name AS seller_name FROM order_items oi JOIN sellers s ON s.user_id = oi.seller_id
      WHERE oi.order_id = $1 ORDER BY oi.id`, [id]);
-  res.json({...order, items});
+  res.json({...order, items: items.map(i => ({...i, ...docLinks(i)}))});
+});
+
+// ---- Marketplace tax settings and monthly TCS / TDS report ----
+
+r.get('/tax-settings', async (_req, res) => {
+  const s = await getSettings();
+  res.json({commissionGstPct: s.commissionGstPct, tcsPct: s.tcsPct, tdsPct: s.tdsPct, platform: s.platform});
+});
+
+r.put('/tax-settings', async (req, res) => {
+  const b = z.object({
+    commissionGstPct: z.number().min(0).max(28),
+    tcsPct: z.number().min(0).max(5),
+    tdsPct: z.number().min(0).max(5),
+    platform: z.object({
+      name: z.string().trim().min(2),
+      gstin: z.string().trim().toUpperCase().refine(g => g === '' || !validateGstin(g), 'Invalid GSTIN'),
+      address: z.string().trim(),
+    }),
+  }).parse(req.body);
+  for (const [k, v] of [['commission_gst_pct', b.commissionGstPct], ['tcs_pct', b.tcsPct], ['tds_pct', b.tdsPct], ['platform', b.platform]] as const)
+    await q(`INSERT INTO settings(key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2`, [k, JSON.stringify(v)]);
+  res.json({ok: true});
+});
+
+/** Per-seller totals for one month: what to deposit as GST TCS (GSTR-8) and income-tax TDS (194-O), plus commission earned. */
+r.get('/tax-report', async (req, res) => {
+  const month = z.string().regex(/^\d{4}-\d{2}$/, 'Use YYYY-MM').parse(req.query.month);
+  const rows = await q(
+    `SELECT s.user_id AS seller_id, s.business_name, s.gstin, s.pan,
+            COUNT(*)::int AS lines,
+            SUM(oi.line_total)::float AS gross, SUM(oi.taxable_value)::float AS taxable,
+            SUM(oi.cgst + oi.sgst + oi.igst)::float AS gst,
+            SUM(oi.tcs_amt)::float AS tcs, SUM(oi.tds_amt)::float AS tds,
+            SUM(oi.commission_amt)::float AS commission, SUM(oi.commission_gst)::float AS commission_gst
+     FROM order_items oi JOIN orders o ON o.id = oi.order_id JOIN sellers s ON s.user_id = oi.seller_id
+     WHERE oi.status NOT IN ('cancelled','pending_payment','refunded')
+       AND date_trunc('month', o.created_at AT TIME ZONE 'Asia/Kolkata') = to_date($1, 'YYYY-MM')
+     GROUP BY s.user_id ORDER BY s.business_name`, [month]);
+  res.json({month, rows});
 });
 
 export default r;

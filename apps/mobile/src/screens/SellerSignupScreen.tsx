@@ -1,11 +1,11 @@
 import React, {useState} from 'react';
-import {KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import {Button, Field, Header} from '../components/ui';
 import {colors, fonts, radius} from '../theme';
 import {api} from '../api';
-import {PARTNER_URL, USE_MOCK} from '../config';
+import {PARTNER_URL, SITE_URL, USE_MOCK} from '../config';
 
 const GSTIN_RE = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 const PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/;
@@ -31,7 +31,8 @@ export default function SellerSignupScreen({navigation}: any) {
     email: !/^\S+@\S+\.\S+$/.test(f.email) && 'Enter a valid email',
     password: f.password.length < 6 && 'At least 6 characters',
   };
-  const valid = !Object.values(errs).some(Boolean);
+  const [agree, setAgree] = useState(false);
+  const valid = !Object.values(errs).some(Boolean) && agree;
   const e = (k: keyof typeof errs) => tried && errs[k];
 
   const submit = async () => {
@@ -40,7 +41,7 @@ export default function SellerSignupScreen({navigation}: any) {
     setErr(null);
     setBusy(true);
     try {
-      await api('/auth/register-seller', {body: {...f, email: f.email.trim()}});
+      await api('/auth/register-seller', {body: {...f, email: f.email.trim(), agree}});
       setDone(true);
     } catch (x: any) {
       setErr(x.message);
@@ -91,6 +92,17 @@ export default function SellerSignupScreen({navigation}: any) {
           <Field label="Email (used to log in)" value={f.email} onChangeText={set('email')} keyboardType="email-address" autoCapitalize="none" error={e('email')} />
           <Field label="Password" value={f.password} onChangeText={set('password')} secureTextEntry error={e('password')} />
 
+          <Pressable onPress={() => setAgree(!agree)} style={s.agreeRow}>
+            <View style={[s.box, agree && {backgroundColor: colors.ink, borderColor: colors.ink}]}>
+              {agree && <Icon name="check" size={14} color="#fff" strokeWidth={3} />}
+            </View>
+            <Text style={s.agreeText}>
+              I agree to the{' '}
+              <Text style={{textDecorationLine: 'underline', color: colors.ink}} onPress={() => Linking.openURL(`${SITE_URL}/seller-agreement`)}>Seller Agreement</Text>
+              , including commission, GST TCS/TDS deductions and the return policy.
+            </Text>
+          </Pressable>
+          {tried && !agree && <Text style={s.err}>Please accept the Seller Agreement</Text>}
           {err && <Text style={s.err}>{err}</Text>}
           <Button title={busy ? 'Submitting…' : 'Create seller account'} disabled={busy} onPress={submit} />
         </ScrollView>
@@ -105,6 +117,9 @@ const s = StyleSheet.create({
   perk: {flexDirection: 'row', alignItems: 'center', gap: 10},
   perkText: {color: colors.text, fontSize: 13},
   err: {color: colors.red, marginBottom: 12, fontWeight: '600'},
+  agreeRow: {flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 16},
+  box: {width: 20, height: 20, borderWidth: 1.5, borderColor: colors.muted, alignItems: 'center', justifyContent: 'center', marginTop: 1},
+  agreeText: {flex: 1, color: colors.text, fontSize: 13, lineHeight: 19},
   doneWrap: {flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32},
   doneIcon: {width: 80, height: 80, borderRadius: 40, backgroundColor: colors.green, alignItems: 'center', justifyContent: 'center'},
   doneTitle: {fontSize: 28, fontFamily: fonts.serif, color: colors.ink, marginTop: 20, textAlign: 'center'},

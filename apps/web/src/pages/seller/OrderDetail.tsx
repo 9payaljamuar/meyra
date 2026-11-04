@@ -54,7 +54,8 @@ export default function SellerOrderDetail() {
                 <div className="muted">{[`Qty ${o.qty}`, o.option, o.size && `Size ${o.size}`].filter(Boolean).join(' · ')}</div>
                 <div className="mini-stats" style={{ marginTop: 14 }}>
                   <div><b>{inr(o.line_total)}</b><span>Customer paid</span></div>
-                  <div><b>−{inr(o.commission_amt)}</b><span>Commission ({o.commission_pct}%)</span></div>
+                  <div><b>−{inr(o.commission_amt + o.commission_gst)}</b><span>Commission {o.commission_pct}% + GST</span></div>
+                  <div><b>−{inr(o.tcs_amt + o.tds_amt)}</b><span>TCS + TDS</span></div>
                   <div><b>{inr(o.seller_amt)}</b><span>You receive</span></div>
                 </div>
               </div>
@@ -123,6 +124,13 @@ export default function SellerOrderDetail() {
               <button className="btn green" disabled={busy} onClick={() => act({ status: 'refunded' }, 'Refund issued.', `Confirm you received ${o.name} back?`)}>Received · Refund customer</button>
             </div>
           )}
+          <div className="card form">
+            <h2>Documents</h2>
+            {o.label_url && <a className="btn ghost" href={o.label_url} target="_blank">Print packing slip &amp; label</a>}
+            {o.invoice_url
+              ? <a className="btn ghost" href={o.invoice_url} target="_blank">GST invoice {o.invoice_no}</a>
+              : <span className="muted small">The GST invoice is created when you mark the order shipped.</span>}
+          </div>
           <div className="card">
             <h2>Ship to</h2>
             <p style={{ margin: '8px 0 0' }}><b>{o.address.name}</b> · {o.address.phone}<br />{o.address.line1}<br />{o.address.city}, {o.address.state} {o.address.pincode}</p>

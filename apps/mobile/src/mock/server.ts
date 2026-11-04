@@ -138,7 +138,9 @@ export async function mockApi(path: string, method: string, body: any, token: st
   const list = (v?: string) => (v ? v.split(',').filter(Boolean) : []);
   let m: RegExpMatchArray | null;
 
-  if (route === '/meta') return {groups: Object.keys(CATEGORIES), categories: CATEGORIES, skinTypes: SKIN_TYPES, hairTypes: HAIR_TYPES};
+  if (route === '/meta')
+    return {groups: Object.keys(CATEGORIES), categories: CATEGORIES, skinTypes: SKIN_TYPES, hairTypes: HAIR_TYPES,
+      features: {onlinePayment: true, phoneLogin: true, emailReset: true, testMode: true}};
 
   // ---- catalog ----
   if (route === '/products' && method === 'GET') {

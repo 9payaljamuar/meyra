@@ -6,6 +6,7 @@ import Icon from '../components/Icon';
 import {EmptyState, ErrorState, Header} from '../components/ui';
 import {colors, fonts, radius, rupee} from '../theme';
 import {api, imageUrl, useApi} from '../api';
+import {SITE_URL} from '../config';
 
 const STATUS: Record<string, {label: string; color: string; bg: string}> = {
   placed: {label: 'Order placed', color: '#B7791F', bg: '#FDF3E1'},
@@ -110,6 +111,11 @@ export default function OrdersScreen({navigation}: any) {
                       {it.awb && (
                         <Pressable onPress={() => it.tracking_url && Linking.openURL(it.tracking_url)} style={{marginTop: 6}}>
                           <Text style={s.track}>{it.courier} · AWB {it.awb} ↗</Text>
+                        </Pressable>
+                      )}
+                      {it.invoice_url && (
+                        <Pressable onPress={() => Linking.openURL(SITE_URL + it.invoice_url)} style={{marginTop: 6}}>
+                          <Text style={s.track}>Download GST invoice ↗</Text>
                         </Pressable>
                       )}
                       {it.refund_method && (

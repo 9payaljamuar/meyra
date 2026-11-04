@@ -15,6 +15,7 @@ import catalogRoutes from './routes/catalog.js';
 import orderRoutes from './routes/orders.js';
 import sellerRoutes from './routes/seller.js';
 import adminRoutes from './routes/admin.js';
+import documentRoutes from './documents.js';
 
 const ALLOWED = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const upload = multer({
@@ -57,6 +58,7 @@ api.use('/auth', authRoutes);
 api.use('/orders', orderRoutes);
 api.use('/seller', sellerRoutes);
 api.use('/admin', adminRoutes);
+api.use('/documents', documentRoutes);
 api.use('/', catalogRoutes);
 
 const app = express();
@@ -98,7 +100,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const first = err.issues[0];
     const field = first?.path.join('.');
     // Custom messages are already user-facing; prefix zod's generic ones with the field name.
-    const generic = first?.code !== 'custom' && !/^(Enter|Invalid|Add|Pick|Give|Tell)/.test(first?.message ?? '');
+    const generic = first?.code !== 'custom' && !/^(Enter|Invalid|Add|Pick|Give|Tell|Please|Choose|Use)/.test(first?.message ?? '');
     const label = String(first?.path.at(-1) ?? '').replace(/([A-Z])/g, ' $1').toLowerCase();
     const msg = generic && label ? `${label[0].toUpperCase()}${label.slice(1)}: ${first.message.toLowerCase()}` : first?.message;
     return res.status(400).json({error: msg ?? 'Invalid input', field});

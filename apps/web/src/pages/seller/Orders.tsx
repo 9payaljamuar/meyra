@@ -109,6 +109,8 @@ export default function SellerOrders() {
                 <td><Badge status={o.status} />{o.refund_method && <div className="muted small">{o.refund_method === 'gateway' ? 'Refunded to card/UPI' : 'Manual refund'}</div>}</td>
                 <td className="num" onClick={e => e.stopPropagation()}>
                   <div className="row" style={{ justifyContent: 'flex-end' }}>
+                    {o.label_url && <a className="btn ghost sm" href={o.label_url} target="_blank">Label</a>}
+                    {o.invoice_url && <a className="btn ghost sm" href={o.invoice_url} target="_blank">Invoice</a>}
                     {o.status === 'placed' && <button className="btn sm" onClick={() => { setShipping(o); setAwb('') }}>Ship</button>}
                     {o.status === 'shipped' && <button className="btn green sm" disabled={busy} onClick={() => act(o.id, { status: 'delivered' })}>Mark delivered</button>}
                     {o.status === 'return_requested' && <button className="btn sm" onClick={() => { setReviewing(o); setNote('') }}>Review return</button>}

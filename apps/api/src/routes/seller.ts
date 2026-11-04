@@ -7,6 +7,8 @@ import {PRODUCT_SELECT, serializeProduct} from '../products.js';
 import {addTracking, HttpError, refundItem} from '../lifecycle.js';
 import {notifyLater} from '../providers/messaging.js';
 import {bookShiprocket, COURIERS, shiprocketLive, trackingUrl} from '../providers/shipping.js';
+import {GST_RATES, nextInvoiceNo, variantKey} from '../tax.js';
+import {docLinks} from '../documents.js';
 
 const r = Router();
 r.use(requireAuth('seller'));
@@ -30,6 +32,7 @@ r.patch('/profile', async (req, res) => {
       bankIfsc: z.string().trim().toUpperCase().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC').optional(),
       gstDoc: z.string().optional(),
       panDoc: z.string().optional(),
+      onHoliday: z.boolean().optional(),
     })
     .parse(req.body);
   // Rejected sellers who update their KYC go back into the review queue.
@@ -37,11 +40,11 @@ r.patch('/profile', async (req, res) => {
     `UPDATE sellers SET
        business_name = COALESCE($2, business_name), address = COALESCE($3, address),
        bank_account = COALESCE($4, bank_account), bank_ifsc = COALESCE($5, bank_ifsc),
-       gst_doc = COALESCE($6, gst_doc), pan_doc = COALESCE($7, pan_doc),
+       gst_doc = COALESCE($6, gst_doc), pan_doc = COALESCE($7, pan_doc), on_holiday = COALESCE($8, on_holiday),
        status = CASE WHEN status = 'rejected' THEN 'pending' ELSE status END,
        reject_reason = CASE WHEN status = 'rejected' THEN NULL ELSE reject_reason END
      WHERE user_id = $1 RETURNING *`,
-    [req.user!.id, b.businessName, b.address, b.bankAccount, b.bankIfsc, b.gstDoc, b.panDoc],
+    [req.user!.id, b.businessName, b.address, b.bankAccount, b.bankIfsc, b.gstDoc, b.panDoc, b.onHoliday ?? null],
   );
   res.json(row);
 });
@@ -66,9 +69,25 @@ const ProductBody = z
     hairTypes: z.array(z.string()).default([]),
     sizes: z.array(z.string()).default([]),
     option: z.object({label: z.enum(['Shade', 'Colour']), values: z.array(OptionValue).min(1)}).nullable().default(null),
+    hsn: z.string({required_error: 'Enter the HSN code (needed for GST invoices)'}).trim().regex(/^\d{4,8}$/, 'Enter a valid HSN code (4–8 digits)'),
+    gstRate: z.number({required_error: 'Choose the GST rate'}).refine(r => GST_RATES.includes(r), 'Choose the GST rate'),
+    // Stock per "Shade|Size" combination; required when the product has shades/colours or sizes.
+    variantStock: z.record(z.string(), z.number().int().min(0)).default({}),
   })
   .refine(b => b.price <= b.mrp, {message: 'Selling price cannot be above MRP', path: ['price']})
   .refine(b => CATEGORIES[b.group].includes(b.category), {message: 'Category does not belong to group', path: ['category']});
+
+type ProductInput = z.infer<typeof ProductBody>;
+
+/** Normalise stock: products with variants store a count per combination, and `stock` is their sum. */
+function stockOf(b: ProductInput) {
+  const opts = b.option?.values.map(v => v.name) ?? [''];
+  const sizes = b.sizes.length ? b.sizes : [''];
+  if (!b.option && !b.sizes.length) return {stock: b.stock, variants: {} as Record<string, number>};
+  const variants: Record<string, number> = {};
+  for (const o of opts) for (const s of sizes) variants[variantKey(o || null, s || null)] = b.variantStock[variantKey(o || null, s || null)] ?? 0;
+  return {stock: Object.values(variants).reduce((a, n) => a + n, 0), variants};
+}
 
 async function requireApproved(userId: number) {
   const s = await seller(userId);
@@ -84,13 +103,15 @@ r.post('/products', async (req, res) => {
   if (!(await requireApproved(req.user!.id)))
     return res.status(403).json({error: 'Your KYC must be approved before you can list products'});
   const b = ProductBody.parse(req.body);
+  const st = stockOf(b);
   const row = await one(
     `INSERT INTO products(seller_id, name, description, grp, category, price, mrp, stock, images,
-       skin_types, hair_types, sizes, option_label, options)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
-    [req.user!.id, b.name, b.description, b.group, b.category, b.price, b.mrp, b.stock,
+       skin_types, hair_types, sizes, option_label, options, hsn, gst_rate, variant_stock)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
+    [req.user!.id, b.name, b.description, b.group, b.category, b.price, b.mrp, st.stock,
       JSON.stringify(b.images), JSON.stringify(b.skinTypes), JSON.stringify(b.hairTypes),
-      JSON.stringify(b.sizes), b.option?.label ?? null, JSON.stringify(b.option?.values ?? [])],
+      JSON.stringify(b.sizes), b.option?.label ?? null, JSON.stringify(b.option?.values ?? []),
+      b.hsn, b.gstRate, JSON.stringify(st.variants)],
   );
   res.status(201).json(row);
 });
@@ -101,6 +122,7 @@ r.put('/products/:id', async (req, res) => {
   const cur = await one('SELECT * FROM products WHERE id = $1 AND seller_id = $2', [id, req.user!.id]);
   if (!cur) return res.status(404).json({error: 'Product not found'});
   const b = ProductBody.parse(req.body);
+  const st = stockOf(b);
   const contentChanged =
     cur.name !== b.name || cur.description !== b.description || cur.grp !== b.group ||
     cur.category !== b.category || cur.price !== b.price || cur.mrp !== b.mrp ||
@@ -112,12 +134,14 @@ r.put('/products/:id', async (req, res) => {
   await q(
     `UPDATE products SET name=$3, description=$4, grp=$5, category=$6, price=$7, mrp=$8, stock=$9, images=$10,
        skin_types=$11, hair_types=$12, sizes=$13, option_label=$14, options=$15, updated_at=now(),
+       hsn=$17, gst_rate=$18, variant_stock=$19,
        status = CASE WHEN $16 THEN 'pending' ELSE status END,
        reject_reason = CASE WHEN $16 THEN NULL ELSE reject_reason END
      WHERE id = $1 AND seller_id = $2`,
-    [id, req.user!.id, b.name, b.description, b.group, b.category, b.price, b.mrp, b.stock,
+    [id, req.user!.id, b.name, b.description, b.group, b.category, b.price, b.mrp, st.stock,
       JSON.stringify(b.images), JSON.stringify(b.skinTypes), JSON.stringify(b.hairTypes),
-      JSON.stringify(b.sizes), b.option?.label ?? null, JSON.stringify(b.option?.values ?? []), contentChanged],
+      JSON.stringify(b.sizes), b.option?.label ?? null, JSON.stringify(b.option?.values ?? []), contentChanged,
+      b.hsn, b.gstRate, JSON.stringify(st.variants)],
   );
   res.json({ok: true, resubmitted: contentChanged});
 });
@@ -127,7 +151,7 @@ r.delete('/products/:id', async (req, res) => {
   const sold = await one('SELECT 1 FROM order_items WHERE product_id = $1', [id]);
   if (sold) {
     // Keep history intact; just take it off sale.
-    await q(`UPDATE products SET stock = 0 WHERE id = $1 AND seller_id = $2`, [id, req.user!.id]);
+    await q(`UPDATE products SET stock = 0, variant_stock = '{}' WHERE id = $1 AND seller_id = $2`, [id, req.user!.id]);
     return res.json({ok: true, archived: true});
   }
   await q('DELETE FROM products WHERE id = $1 AND seller_id = $2', [id, req.user!.id]);
@@ -141,7 +165,7 @@ r.get('/orders', async (req, res) => {
      WHERE oi.seller_id = $1 AND oi.status <> 'pending_payment' ORDER BY oi.id DESC`,
     [req.user!.id],
   );
-  res.json(rows);
+  res.json(rows.map(r => ({...r, ...docLinks(r)})));
 });
 
 r.get('/shipping-options', (_req, res) => {
@@ -183,9 +207,12 @@ r.patch('/order-items/:id', async (req, res) => {
         if (!b.courier || !b.awb) throw new HttpError(400, 'Enter the courier and AWB / tracking number');
         ship = {courier: b.courier, awb: b.awb, trackingUrl: trackingUrl(b.courier, b.awb)};
       }
+      // The GST invoice is issued when the goods leave the seller.
+      const invoiceNo = it.invoice_no ?? (await nextInvoiceNo(null, it.seller_id));
       await q(
-        `UPDATE order_items SET status = 'shipped', courier = $2, awb = $3, tracking_url = $4, shipped_at = now(), updated_at = now() WHERE id = $1`,
-        [it.id, ship.courier, ship.awb, ship.trackingUrl],
+        `UPDATE order_items SET status = 'shipped', courier = $2, awb = $3, tracking_url = $4, shipped_at = now(), updated_at = now(),
+           invoice_no = $5, invoiced_at = COALESCE(invoiced_at, now()) WHERE id = $1`,
+        [it.id, ship.courier, ship.awb, ship.trackingUrl, invoiceNo],
       );
       await addTracking(it.id, 'shipped', `Shipped with ${ship.courier}. AWB ${ship.awb}`);
       notifyLater(it.buyer_id, `Your order #${it.order_id} has shipped`,
@@ -235,7 +262,10 @@ r.get('/earnings', async (req, res) => {
        COALESCE(SUM(commission_amt) FILTER (WHERE status NOT IN ('cancelled','pending_payment','refunded')), 0) AS commission,
        COALESCE(SUM(seller_amt) FILTER (WHERE status = 'delivered'), 0) AS earned,
        COALESCE(SUM(seller_amt) FILTER (WHERE status IN ('placed','shipped','return_requested','return_approved')), 0) AS pending,
-       COALESCE(SUM(line_total) FILTER (WHERE status = 'refunded'), 0) AS refunded
+       COALESCE(SUM(line_total) FILTER (WHERE status = 'refunded'), 0) AS refunded,
+       COALESCE(SUM(commission_gst) FILTER (WHERE status NOT IN ('cancelled','pending_payment','refunded')), 0) AS commission_gst,
+       COALESCE(SUM(tcs_amt) FILTER (WHERE status NOT IN ('cancelled','pending_payment','refunded')), 0) AS tcs,
+       COALESCE(SUM(tds_amt) FILTER (WHERE status NOT IN ('cancelled','pending_payment','refunded')), 0) AS tds
      FROM order_items WHERE seller_id = $1`,
     [id],
   );
@@ -280,7 +310,25 @@ r.get('/order-items/:id', async (req, res) => {
      WHERE oi.id = $1 AND oi.seller_id = $2 AND oi.status <> 'pending_payment'`,
     [Number(req.params.id), req.user!.id]);
   if (!it) throw new HttpError(404, 'Order not found');
-  res.json(it);
+  res.json({...it, ...docLinks(it)});
+});
+
+/** Order-level statement for the seller's accountant: every sale with its deductions, for a date range. */
+r.get('/statement', async (req, res) => {
+  const from = String(req.query.from ?? '1970-01-01');
+  const to = String(req.query.to ?? '2999-12-31');
+  const rows = await q(
+    `SELECT oi.order_id, oi.id AS item_id, o.created_at, oi.invoice_no, oi.name, oi.option, oi.size, oi.qty, oi.hsn, oi.gst_rate,
+            oi.line_total, oi.taxable_value, oi.cgst, oi.sgst, oi.igst, oi.commission_amt, oi.commission_gst, oi.tcs_amt, oi.tds_amt,
+            oi.seller_amt, oi.status, o.payment_method
+     FROM order_items oi JOIN orders o ON o.id = oi.order_id
+     WHERE oi.seller_id = $1 AND oi.status <> 'pending_payment' AND o.created_at >= $2::date AND o.created_at < ($3::date + 1)
+     ORDER BY o.created_at`,
+    [req.user!.id, from, to]);
+  const payouts = await q(
+    `SELECT created_at, amount, reference FROM payouts WHERE seller_id = $1 AND created_at >= $2::date AND created_at < ($3::date + 1) ORDER BY id`,
+    [req.user!.id, from, to]);
+  res.json({rows, payouts});
 });
 
 r.get('/products/:id/overview', async (req, res) => {

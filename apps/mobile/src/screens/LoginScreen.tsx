@@ -12,6 +12,7 @@ import {Button} from '../components/ui';
 import {IMG} from '../images';
 import {colors, fonts} from '../theme';
 import {USE_MOCK} from '../config';
+import {Meta, useApi} from '../api';
 import {useStore} from '../store';
 
 type Mode = 'login' | 'register';
@@ -33,6 +34,8 @@ export default function LoginScreen({navigation, route}: any) {
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
   const [devCode, setDevCode] = useState<string | undefined>();
+  const {data: meta} = useApi<Meta>('/meta');
+  const phoneOk = meta?.features?.phoneLogin !== false;
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -220,12 +223,16 @@ export default function LoginScreen({navigation, route}: any) {
                 </Pressable>
               )}
 
-              <View style={s.or}>
-                <View style={s.orLine} /><Text style={s.orText}>OR</Text><View style={s.orLine} />
-              </View>
-              <Pressable style={s.alt} onPress={() => fadeSwap(() => { setMethod(method === 'email' ? 'phone' : 'email'); setOtpSent(false); })}>
-                <Text style={s.altText}>{method === 'email' ? 'Continue with mobile number' : 'Continue with email'}</Text>
-              </Pressable>
+              {phoneOk && (
+                <>
+                  <View style={s.or}>
+                    <View style={s.orLine} /><Text style={s.orText}>OR</Text><View style={s.orLine} />
+                  </View>
+                  <Pressable style={s.alt} onPress={() => fadeSwap(() => { setMethod(method === 'email' ? 'phone' : 'email'); setOtpSent(false); })}>
+                    <Text style={s.altText}>{method === 'email' ? 'Continue with mobile number' : 'Continue with email'}</Text>
+                  </Pressable>
+                </>
+              )}
 
               {USE_MOCK && mode === 'login' && method === 'email' && (
                 <Pressable onPress={() => { setEmail('customer@meyra.app'); setPassword('customer123'); }} style={s.demo}>

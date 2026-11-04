@@ -71,6 +71,9 @@ export type Product = {
   hairTypes: string[]
   sizes: string[]
   option: { label: 'Shade' | 'Colour'; values: { name: string; hex: string; images?: string[] }[] } | null
+  variantStock: Record<string, number>
+  hsn: string | null
+  gstRate: number | null
   status: 'pending' | 'approved' | 'rejected'
   rejectReason: string | null
   featured: boolean
@@ -87,4 +90,7 @@ export type Meta = {
   skinTypes: string[]
   hairTypes: string[]
   sizes: string[]
+  gstRates: number[]
+  taxDefaults: Record<string, { hsn: string; rate: number }>
+  states: string[]
 }

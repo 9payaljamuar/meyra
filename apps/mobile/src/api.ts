@@ -22,6 +22,7 @@ export type Product = {
   hairTypes: string[];
   sizes: string[];
   option: {label: 'Shade' | 'Colour'; values: OptionValue[]} | null;
+  variantStock?: Record<string, number>;
   featured: boolean;
   isNew: boolean;
   sellerId: number;
@@ -40,7 +41,10 @@ export type Review = {
   createdAt: string;
 };
 
+export type Features = {onlinePayment: boolean; phoneLogin: boolean; emailReset: boolean; testMode: boolean};
+
 export type Meta = {
+  features?: Features;
   groups: string[];
   categories: Record<string, string[]>;
   skinTypes: string[];

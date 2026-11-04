@@ -19,7 +19,7 @@ function Page({ title, children }: { title: string; children: React.ReactNode })
     <div className="legal">
       <header>
         <Link to="/"><img src="/logo.jpg" alt="Meyra" /></Link>
-        <nav><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></nav>
+        <nav><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><Link to="/seller-agreement">Seller Agreement</Link></nav>
       </header>
       <article>
         <h1>{title}</h1>
@@ -97,6 +97,48 @@ export function Terms() {
       <h2>Law and disputes</h2>
       <p>These terms are governed by the laws of India. Courts in Bengaluru, Karnataka have jurisdiction.</p>
       <h2>Contact and grievances</h2>
+      {CONTACT}
+    </Page>
+  )
+}
+
+export function SellerAgreement() {
+  return (
+    <Page title="Seller Agreement">
+      <p>This agreement is between Meyra (the marketplace operator) and you, the seller registering on the Meyra Partner Hub. By ticking “I agree” during registration you accept these terms.</p>
+      <h2>Eligibility and KYC</h2>
+      <ul>
+        <li>You must hold a valid GST registration and provide accurate business, PAN and bank details.</li>
+        <li>Meyra verifies your documents before you can list products and may ask for more information at any time.</li>
+      </ul>
+      <h2>Listings</h2>
+      <ul>
+        <li>Listing is free. Every product and every change to it is reviewed by Meyra before it goes live.</li>
+        <li>You may list only genuine products you are legally allowed to sell, with accurate descriptions, photos, prices, HSN codes and GST rates.</li>
+        <li>Prices you set are inclusive of GST and must not exceed the MRP.</li>
+        <li>Meyra may reject, suspend or remove listings that break these rules or the law.</li>
+      </ul>
+      <h2>Orders and shipping</h2>
+      <ul>
+        <li>Ship orders within 2 working days and add the courier and tracking number in the Partner Hub.</li>
+        <li>You issue the GST tax invoice for every sale; the Partner Hub generates it with your details when you mark the order shipped. Include it in the parcel.</li>
+        <li>Keep enough stock. Repeated cancellations by the seller may lead to suspension.</li>
+      </ul>
+      <h2>Returns</h2>
+      <p>You accept returns under Meyra’s customer return policy (7 days from delivery; hygiene exceptions for opened cosmetics). Refunds are issued once the returned item reaches you; you must inspect and confirm within 2 working days.</p>
+      <h2>Fees and deductions</h2>
+      <ul>
+        <li>Meyra charges a commission on each sale, shown in the Partner Hub (default 10%, may differ by category or be agreed separately). GST at 18% applies to the commission.</li>
+        <li>As an e-commerce operator, Meyra deducts and deposits 1% GST TCS (section 52, CGST Act) and 0.1% income-tax TDS (section 194-O) on your sales. These appear in your statements and can be claimed by you in your returns.</li>
+        <li>Your earnings for delivered orders, after these deductions, are paid to your registered bank account on the payout schedule Meyra publishes. Amounts for returned or refunded items are not paid out.</li>
+      </ul>
+      <h2>Your responsibilities</h2>
+      <p>You are responsible for product quality, safety, labelling (including legal metrology and cosmetic labelling rules), warranties and your own tax filings. You will not contact customers outside Meyra for marketing, or ask them to buy off-platform.</p>
+      <h2>Suspension and termination</h2>
+      <p>Either party may end this agreement with 15 days’ notice. Meyra may suspend a seller immediately for fraud, counterfeit goods, repeated policy breaches or legal requirements. Pending payouts for delivered orders are settled after the return window closes.</p>
+      <h2>Law</h2>
+      <p>This agreement is governed by Indian law; courts in Bengaluru, Karnataka have jurisdiction.</p>
+      <h2>Contact</h2>
       {CONTACT}
     </Page>
   )

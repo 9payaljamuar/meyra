@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import {migrate, one, pool, q} from './db.js';
 import {withCheckDigit} from './providers/gst.js';
 import {saveFile} from './providers/storage.js';
+import {fyOf, splitTax, suggestedRate, TAX_DEFAULTS, variantKey} from './tax.js';
 import {PRODUCTS} from './seed-data/products.js';
 import {reviewsFor} from './seed-data/reviews.js';
 
@@ -41,9 +42,12 @@ async function user(name: string, email: string, role: string, password: string,
 async function seller(name: string, email: string, business: string, gstin: string, status = 'approved') {
   const id = await user(name, email, 'seller', 'seller123', '9876543210');
   await q(
-    `INSERT INTO sellers(user_id, business_name, gstin, pan, address, bank_account, bank_ifsc, status, reviewed_at, gst_check)
-     VALUES ($1,$2,$3,$4,'Bengaluru, Karnataka','123456789012','HDFC0001234',$5, CASE WHEN $5 = 'approved' THEN now() END, $6)`,
-    [id, business, gstin, gstin.slice(2, 12), status, JSON.stringify({checksum: true, checkedAt: new Date().toISOString()})],
+    `INSERT INTO sellers(user_id, business_name, gstin, pan, address, bank_account, bank_ifsc, status, reviewed_at, gst_check, agreed_at)
+     VALUES ($1,$2,$3,$4,$7,'123456789012','HDFC0001234',$5, CASE WHEN $5 = 'approved' THEN now() END, $6, now())`,
+    [id, business, gstin, gstin.slice(2, 12), status, JSON.stringify({checksum: true, checkedAt: new Date().toISOString()}),
+      // Pickup address in the same state as the GSTIN.
+      ({'27': 'Andheri East, Mumbai, Maharashtra 400069', '07': 'Lajpat Nagar, New Delhi 110024'} as Record<string, string>)[gstin.slice(0, 2)]
+        ?? 'Indiranagar, Bengaluru, Karnataka 560038'],
   );
   return id;
 }
@@ -73,15 +77,21 @@ async function main() {
     const images = await Promise.all(p.images.map(img));
     const options = await Promise.all((p.option?.values ?? []).map(async v => ({...v, images: v.images && (await Promise.all(v.images.map(img)))})));
     const ageDays = p.isNew ? 2 : 30;
-    const stock = p.id === 'j6' || p.id === 'h2' ? 3 : 20 + (p.id.charCodeAt(1) % 30);
+    let stock = p.id === 'j6' || p.id === 'h2' ? 3 : 20 + (p.id.charCodeAt(1) % 30);
+    // Sized / shaded products track stock per combination (one size left low to show "only N left").
+    const variants: Record<string, number> = {};
+    const opts = p.option?.values.map(v => v.name) ?? [null];
+    for (const o of opts) for (const s of p.sizes ?? [null]) variants[variantKey(o, s)] = s === 'XL' ? 2 : 6;
+    if (p.option || p.sizes?.length) stock = Object.values(variants).reduce((a, n) => a + n, 0);
     const row = await one(
       `INSERT INTO products(seller_id, name, description, grp, category, price, mrp, stock, images,
-         skin_types, hair_types, sizes, option_label, options, status, featured, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'approved',$15, now() - ($16 || ' days')::interval, now())
+         skin_types, hair_types, sizes, option_label, options, status, featured, created_at, updated_at, hsn, gst_rate, variant_stock)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'approved',$15, now() - ($16 || ' days')::interval, now(), $17, $18, $19)
        RETURNING id`,
       [sellers[p.seller], p.name, p.desc, p.group, p.category, p.price, p.mrp, stock, JSON.stringify(images),
         JSON.stringify(p.skinTypes ?? []), JSON.stringify(p.hairTypes ?? []), JSON.stringify(p.sizes ?? []),
-        p.option?.label ?? null, JSON.stringify(options), !!p.bestseller, String(ageDays)],
+        p.option?.label ?? null, JSON.stringify(options), !!p.bestseller, String(ageDays),
+        TAX_DEFAULTS[p.category]?.hsn ?? null, suggestedRate(p.category, p.price), JSON.stringify(p.option || p.sizes?.length ? variants : {})],
     );
     for (const r of reviewsFor(p)) {
       const b = buyers.find(x => x.name === r.name) ?? buyers[0];
@@ -131,9 +141,22 @@ async function main() {
         p.price, p.price >= 499 ? 0 : 49, p.price + (p.price >= 499 ? 0 : 49), at],
     ))!;
     const commission = Math.round(p.price * 10) / 100;
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const s = (await one('SELECT gstin FROM sellers WHERE user_id = $1', [p.seller_id]))!;
+    const tax = splitTax(p.price, p.gst_rate, s.gstin.slice(0, 2), '29');
+    const commissionGst = r2(commission * 0.18), tcs = r2(tax.taxable * 0.01), tds = r2(tax.taxable * 0.001);
+    const invoiced = d.status !== 'placed';
+    const invoiceNo = invoiced
+      ? `MEY/S${p.seller_id}/${fyOf()}/${String((await one(
+          `INSERT INTO invoice_counters(seller_id, fy, last) VALUES ($1, $2, 1)
+           ON CONFLICT (seller_id, fy) DO UPDATE SET last = invoice_counters.last + 1 RETURNING last`, [p.seller_id, fyOf()]))!.last).padStart(4, '0')}`
+      : null;
     const cols = {
       order_id: o.id, product_id: p.id, seller_id: p.seller_id, name: p.name, image: p.images[0], qty: 1,
-      unit_price: p.price, line_total: p.price, commission_pct: 10, commission_amt: commission, seller_amt: p.price - commission,
+      unit_price: p.price, line_total: p.price, commission_pct: 10, commission_amt: commission,
+      seller_amt: r2(p.price - commission - commissionGst - tcs - tds),
+      hsn: p.hsn, gst_rate: p.gst_rate, taxable_value: tax.taxable, cgst: tax.cgst, sgst: tax.sgst, igst: tax.igst,
+      commission_gst: commissionGst, tcs_amt: tcs, tds_amt: tds, invoice_no: invoiceNo, invoiced_at: invoiced ? at : null,
       status: d.status, tracking: JSON.stringify(d.events), updated_at: at, ...(d.extra ?? {}),
       ...(d.status === 'refunded' ? {refund_amount: p.price} : {}),
     };

@@ -10,6 +10,7 @@ export default function SellerRegister() {
   const [f, setF] = useState({ name: '', email: '', password: '', phone: '', businessName: '', gstin: '', pan: '', address: '' })
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [agree, setAgree] = useState(false)
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => {
     let v = e.target.value
     if (k === 'gstin' || k === 'pan') v = v.toUpperCase()
@@ -26,7 +27,7 @@ export default function SellerRegister() {
     setBusy(true)
     setErr(null)
     try {
-      const { token } = await api('/auth/register-seller', { body: f })
+      const { token } = await api('/auth/register-seller', { body: { ...f, agree } })
       await setSession(token)
       nav('/seller/profile?welcome=1')
     } catch (e: any) {
@@ -54,7 +55,11 @@ export default function SellerRegister() {
           <label className="field">PAN<input value={f.pan} onChange={set('pan')} maxLength={10} required /></label>
         </div>
         <label className="field">Pickup address<input value={f.address} onChange={set('address')} /></label>
-        <button className="btn" disabled={busy}>{busy ? 'Creating…' : 'Continue to KYC'}</button>
+        <label className="row small" style={{ alignItems: 'flex-start', gap: 8, fontWeight: 400 }}>
+          <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)} style={{ width: 'auto', marginTop: 3 }} />
+          <span>I agree to the <Link to="/seller-agreement" target="_blank">Seller Agreement</Link>, including the commission, GST TCS/TDS deductions and return policy.</span>
+        </label>
+        <button className="btn" disabled={busy || !agree}>{busy ? 'Creating…' : 'Continue to KYC'}</button>
       </form>
       <p style={{ marginTop: 22 }}>Already registered? <Link to="/login"><b>Log in</b></Link></p>
     </AuthLayout>

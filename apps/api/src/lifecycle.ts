@@ -1,9 +1,21 @@
 // Order state transitions shared by buyer, seller, admin and webhook routes.
+import type pg from 'pg';
 import {one, q, tx} from './db.js';
+import {variantKey} from './tax.js';
 import {notifyLater} from './providers/messaging.js';
 import {refundPayment} from './providers/payments.js';
 
 export const RETURN_WINDOW_DAYS = 7;
+
+/** Put units back on sale, into the right size/shade bucket when the product tracks variants. */
+export async function restock(c: pg.PoolClient | null, productId: number, option: string | null, size: string | null, qty: number) {
+  const sql = `UPDATE products SET stock = stock + $1,
+      variant_stock = CASE WHEN variant_stock ? $3 THEN jsonb_set(variant_stock, ARRAY[$3], to_jsonb((variant_stock->>$3)::int + $1)) ELSE variant_stock END
+    WHERE id = $2`;
+  const params = [qty, productId, variantKey(option, size)];
+  if (c) await c.query(sql, params);
+  else await q(sql, params);
+}
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -69,8 +81,8 @@ export async function markPaymentFailed(orderId: number) {
     if (!rows[0]) return;
     const items = await c.query(
       `UPDATE order_items SET status = 'cancelled', updated_at = now() WHERE order_id = $1 AND status = 'pending_payment'
-       RETURNING product_id, qty`, [orderId]);
-    for (const i of items.rows) await c.query('UPDATE products SET stock = stock + $1 WHERE id = $2', [i.qty, i.product_id]);
+       RETURNING product_id, qty, option, size`, [orderId]);
+    for (const i of items.rows) await restock(c, i.product_id, i.option, i.size, i.qty);
   });
 }
 
@@ -98,7 +110,7 @@ export async function refundItem(itemId: number, opts: {restock: boolean; status
      WHERE id = $1`,
     [itemId, opts.status, method ? it.line_total : null, method, ref],
   );
-  if (opts.restock) await q('UPDATE products SET stock = stock + $1 WHERE id = $2', [it.qty, it.product_id]);
+  if (opts.restock) await restock(null, it.product_id, it.option, it.size, it.qty);
   await addTracking(itemId, opts.status, opts.note);
   if (method) {
     notifyLater(it.buyer_id, `Refund of ${inr(it.line_total)} initiated`,

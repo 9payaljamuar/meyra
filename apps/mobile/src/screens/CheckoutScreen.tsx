@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {Button, Field, Header} from '../components/ui';
 import {colors, fonts, radius} from '../theme';
-import {api} from '../api';
+import {api, Meta, useApi} from '../api';
+import StatePicker from '../components/StatePicker';
 import {useStore} from '../store';
 import {PriceSummary} from './CartScreen';
 
@@ -16,6 +17,8 @@ export default function CheckoutScreen({navigation}: any) {
   const {cart, clearCart, user} = useStore();
   const [a, setA] = useState<Address>({...EMPTY, name: user?.name ?? ''});
   const [pay, setPay] = useState<'COD' | 'ONLINE'>('COD');
+  const {data: meta} = useApi<Meta>('/meta');
+  const onlineOk = meta?.features?.onlinePayment !== false;
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -64,11 +67,15 @@ export default function CheckoutScreen({navigation}: any) {
             <View style={{flex: 1}}><Field label="City" value={a.city} onChangeText={set('city')} /></View>
             <View style={{flex: 1}}><Field label="Pincode" value={a.pincode} onChangeText={set('pincode')} keyboardType="number-pad" maxLength={6} /></View>
           </View>
-          <Field label="State" value={a.state} onChangeText={set('state')} />
+          <StatePicker value={a.state} onChange={set('state')} />
 
           <Text style={[s.h, {marginTop: 8}]}>Payment</Text>
           <PayOption label="Cash on delivery" sub="Pay when your order arrives" on={pay === 'COD'} onPress={() => setPay('COD')} />
-          <PayOption label="UPI / Card / Netbanking" sub="Pay securely with Razorpay" on={pay === 'ONLINE'} onPress={() => setPay('ONLINE')} />
+          {onlineOk ? (
+            <PayOption label="UPI / Card / Netbanking" sub="Pay securely with Razorpay" on={pay === 'ONLINE'} onPress={() => setPay('ONLINE')} />
+          ) : (
+            <Text style={{color: colors.muted, fontSize: 12, marginBottom: 10}}>Online payment is coming soon.</Text>
+          )}
 
           <PriceSummary />
           {err && <Text style={s.err}>{err}</Text>}

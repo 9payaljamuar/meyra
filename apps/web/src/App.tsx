@@ -5,7 +5,8 @@ import { api } from './api'
 import Login from './pages/Login'
 import SellerRegister from './pages/SellerRegister'
 import Forgot from './pages/Forgot'
-import { Privacy, Terms } from './pages/Legal'
+import { Privacy, SellerAgreement, Terms } from './pages/Legal'
+import Doc from './pages/Doc'
 import SellerDashboard from './pages/seller/Dashboard'
 import SellerProducts from './pages/seller/Products'
 import ProductForm from './pages/seller/ProductForm'
@@ -20,6 +21,7 @@ import AdminPayouts from './pages/admin/Payouts'
 import AdminSettings from './pages/admin/Settings'
 import AdminReviews from './pages/admin/Reviews'
 import AdminIntegrations from './pages/admin/Integrations'
+import AdminTax from './pages/admin/Tax'
 import AdminProductDetail from './pages/admin/ProductDetail'
 import AdminSellerDetail from './pages/admin/SellerDetail'
 import AdminOrderDetail from './pages/admin/OrderDetail'
@@ -66,6 +68,7 @@ function AdminArea() {
         { to: '/admin/payouts', label: 'Payouts' },
         { to: '/admin/reviews', label: 'Reviews' },
         { to: '/admin/settings', label: 'Commission' },
+        { to: '/admin/tax', label: 'Tax & compliance' },
         { to: '/admin/integrations', label: 'Integrations' },
       ]}
     />
@@ -83,6 +86,8 @@ export default function App() {
       <Route path="/forgot" element={<Forgot />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/seller-agreement" element={<SellerAgreement />} />
+      <Route path="/doc/:id" element={<Doc />} />
       <Route path="/seller" element={<SellerArea />}>
         <Route index element={<SellerDashboard />} />
         <Route path="products" element={<SellerProducts />} />
@@ -106,6 +111,7 @@ export default function App() {
         <Route path="reviews" element={<AdminReviews />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="integrations" element={<AdminIntegrations />} />
+        <Route path="tax" element={<AdminTax />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

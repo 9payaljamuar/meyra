@@ -5,6 +5,8 @@ import {requireAuth} from '../auth.js';
 import {commissionPct, getSettings, round2} from '../commission.js';
 import {addTracking, announceOrder, expireStalePayments, HttpError, markPaid, markPaymentFailed, refundItem, RETURN_WINDOW_DAYS} from '../lifecycle.js';
 import {createPaymentLink, fetchPaymentLink, paymentsLive} from '../providers/payments.js';
+import {splitTax, stateCodeOf, suggestedRate, TAX_DEFAULTS, variantKey} from '../tax.js';
+import {docLinks} from '../documents.js';
 import {notifyLater} from '../providers/messaging.js';
 
 export {HttpError};
@@ -31,7 +33,7 @@ const OrderBody = z.object({
     phone: z.string().trim().regex(/^[6-9]\d{9}$/, 'Enter a valid 10-digit mobile'),
     line1: z.string().trim().min(3),
     city: z.string().trim().min(2),
-    state: z.string().trim().min(2),
+    state: z.string().trim().refine(s => !!stateCodeOf(s), 'Choose a valid Indian state'),
     pincode: z.string().trim().regex(/^\d{6}$/, 'Enter a valid 6-digit pincode'),
   }),
   paymentMethod: z.enum(['COD', 'ONLINE']).default('COD'),
@@ -39,35 +41,59 @@ const OrderBody = z.object({
 
 r.post('/', async (req, res) => {
   const b = OrderBody.parse(req.body);
+  // Never let real customers through the simulated checkout.
+  if (b.paymentMethod === 'ONLINE' && !paymentsLive && process.env.NODE_ENV === 'production')
+    throw new HttpError(400, 'Online payment is not available yet. Please choose Cash on Delivery.');
   await expireStalePayments();
   const settings = await getSettings();
   const online = b.paymentMethod === 'ONLINE';
+  const buyerState = stateCodeOf(b.address.state);
 
   const order = await tx(async c => {
     const lines = [];
     for (const it of b.items) {
       // Lock the row so two buyers can't oversell the last unit.
       const {rows} = await c.query(
-        `SELECT p.*, s.commission_pct AS seller_pct FROM products p
+        `SELECT p.*, s.commission_pct AS seller_pct, s.gstin AS seller_gstin, s.on_holiday FROM products p
          JOIN sellers s ON s.user_id = p.seller_id
          WHERE p.id = $1 AND p.status = 'approved' AND s.status = 'approved' FOR UPDATE OF p`,
         [it.productId],
       );
       const p = rows[0];
-      if (!p) throw new HttpError(400, 'A product in your bag is no longer available');
-      if (p.stock < it.qty) throw new HttpError(400, `Only ${p.stock} left of ${p.name}`);
+      if (!p || p.on_holiday) throw new HttpError(400, 'A product in your bag is no longer available');
       if (p.sizes.length && !p.sizes.includes(it.size)) throw new HttpError(400, `Pick a size for ${p.name}`);
+      if (p.options.length && !p.options.some((o: any) => o.name === it.option))
+        throw new HttpError(400, `Pick a ${String(p.option_label ?? 'variant').toLowerCase()} for ${p.name}`);
+      // Products with sizes/shades keep stock per combination; others use the single stock count.
+      const key = variantKey(it.option, it.size);
+      const hasVariants = Object.keys(p.variant_stock).length > 0;
+      const available = hasVariants ? Number(p.variant_stock[key] ?? 0) : p.stock;
+      const label = [it.option, it.size].filter(Boolean).join(', ');
+      if (available < it.qty)
+        throw new HttpError(400, available ? `Only ${available} left of ${p.name}${label ? ` (${label})` : ''}` : `${p.name}${label ? ` (${label})` : ''} is sold out`);
 
       const pct = commissionPct(settings, p.seller_pct, p.category);
       const lineTotal = round2(p.price * it.qty);
       const commission = round2((lineTotal * pct) / 100);
+      const rate = p.gst_rate ?? suggestedRate(p.category, p.price);
+      const tax = splitTax(lineTotal, rate, String(p.seller_gstin).slice(0, 2), buyerState);
+      // Deducted from the seller's share: Meyra's commission + GST on it, GST TCS and income-tax TDS on the taxable value.
+      const commissionGst = round2((commission * settings.commissionGstPct) / 100);
+      const tcs = round2((tax.taxable * settings.tcsPct) / 100);
+      const tds = round2((tax.taxable * settings.tdsPct) / 100);
       const optImg = p.options.find((o: any) => o.name === it.option)?.images?.[0];
       lines.push({
-        p, it, pct, lineTotal, commission,
-        sellerAmt: round2(lineTotal - commission),
+        p, it, pct, lineTotal, commission, commissionGst, tcs, tds, tax, rate,
+        hsn: p.hsn ?? TAX_DEFAULTS[p.category]?.hsn ?? null,
+        sellerAmt: round2(lineTotal - commission - commissionGst - tcs - tds),
         image: optImg ?? p.images[0] ?? null,
       });
-      await c.query('UPDATE products SET stock = stock - $1 WHERE id = $2', [it.qty, p.id]);
+      await c.query(
+        `UPDATE products SET stock = stock - $1,
+           variant_stock = CASE WHEN $3 THEN jsonb_set(variant_stock, ARRAY[$4], to_jsonb((variant_stock->>$4)::int - $1)) ELSE variant_stock END
+         WHERE id = $2`,
+        [it.qty, p.id, hasVariants, key],
+      );
     }
 
     const subtotal = round2(lines.reduce((s, l) => s + l.lineTotal, 0));
@@ -85,11 +111,13 @@ r.post('/', async (req, res) => {
     for (const l of lines) {
       await c.query(
         `INSERT INTO order_items(order_id, product_id, seller_id, name, image, option, size, qty,
-           unit_price, line_total, commission_pct, commission_amt, seller_amt, status, tracking)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+           unit_price, line_total, commission_pct, commission_amt, seller_amt, status, tracking,
+           hsn, gst_rate, taxable_value, cgst, sgst, igst, commission_gst, tcs_amt, tds_amt)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
         [rows[0].id, l.p.id, l.p.seller_id, l.p.name, l.image, l.it.option ?? null, l.it.size ?? null,
           l.it.qty, l.p.price, l.lineTotal, l.pct, l.commission, l.sellerAmt,
-          online ? 'pending_payment' : 'placed', firstEvent],
+          online ? 'pending_payment' : 'placed', firstEvent,
+          l.hsn, l.rate, l.tax.taxable, l.tax.cgst, l.tax.sgst, l.tax.igst, l.commissionGst, l.tcs, l.tds],
       );
     }
     return rows[0];
@@ -132,7 +160,7 @@ r.get('/:id/payment', async (req, res) => {
 
 /** Test mode only: the app's simulated checkout reports the outcome here. */
 r.post('/:id/payment/test', async (req, res) => {
-  if (paymentsLive) throw new HttpError(403, 'Test payments are disabled');
+  if (paymentsLive || process.env.NODE_ENV === 'production') throw new HttpError(403, 'Test payments are disabled');
   const {outcome} = z.object({outcome: z.enum(['success', 'failure'])}).parse(req.body);
   const o = await myOrder(Number(req.params.id), req.user!.id);
   if (outcome === 'success') await markPaid(o.id, `pay_test_${Date.now()}`);
@@ -152,14 +180,15 @@ r.get('/', async (req, res) => {
   const items = await q(
     `SELECT oi.id, oi.order_id, oi.product_id, oi.name, oi.image, oi.option, oi.size, oi.qty,
             oi.unit_price, oi.line_total, oi.status, oi.courier, oi.awb, oi.tracking_url, oi.tracking,
-            oi.delivered_at, oi.return_reason, oi.return_note, oi.refund_amount, oi.refund_method, oi.refunded_at,
+            oi.delivered_at, oi.return_reason, oi.return_note, oi.refund_amount, oi.refund_method, oi.refunded_at, oi.invoice_no,
             s.business_name AS seller_name,
             (oi.status = 'delivered' AND oi.delivered_at > now() - interval '${RETURN_WINDOW_DAYS} days') AS can_return
      FROM order_items oi JOIN sellers s ON s.user_id = oi.seller_id
      WHERE oi.order_id = ANY($1::int[]) ORDER BY oi.id`,
     [orders.map(o => o.id)],
   );
-  res.json(orders.map(o => ({...o, items: items.filter(i => i.order_id === o.id)})));
+  // Customers get the invoice link only (not the seller's packing label).
+  res.json(orders.map(o => ({...o, items: items.filter(i => i.order_id === o.id).map(i => ({...i, invoice_url: docLinks(i).invoice_url}))})));
 });
 
 r.post('/items/:itemId/cancel', async (req, res) => {
